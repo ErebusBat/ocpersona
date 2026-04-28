@@ -175,6 +175,11 @@ case ":\$PATH:" in
   *":$(runtime_shim_dir):"*) ;;
   *) export PATH="$(runtime_shim_dir):\$PATH" ;;
 esac
+if command -v rehash >/dev/null 2>&1; then
+  rehash
+elif command -v hash >/dev/null 2>&1; then
+  hash -r 2>/dev/null || true
+fi
 unset OCP_ACTIVE
 unset OCP_CONFIG_HOME
 unset OCP_DATA_HOME
@@ -184,6 +189,11 @@ unset XDG_CONFIG_HOME
 unset XDG_DATA_HOME
 unset XDG_STATE_HOME
 unset XDG_CACHE_HOME
+if command -v rehash >/dev/null 2>&1; then
+  rehash
+elif command -v hash >/dev/null 2>&1; then
+  hash -r 2>/dev/null || true
+fi
 EOF
 }
 
@@ -372,6 +382,11 @@ case ":\$PATH:" in
   *":\${OCP_SHIM_DIR}:"*) ;;
   *) export PATH="\${OCP_SHIM_DIR}:\$PATH" ;;
 esac
+if command -v rehash >/dev/null 2>&1; then
+  rehash
+elif command -v hash >/dev/null 2>&1; then
+  hash -r 2>/dev/null || true
+fi
 ocpersona() {
   case "\${1:-}" in
     activate)
