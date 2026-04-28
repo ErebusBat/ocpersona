@@ -39,10 +39,13 @@ These files are sourced by `ocpersona` and can define values such as:
 
 ```sh
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
+OCP_CONFIG_HOME="$HOME/.config/ocpersona/work"
 OCP_DATA_HOME="$HOME/.local/share/opencode-work"
 OCP_STATE_HOME="$HOME/.local/state/opencode-work"
 OCP_CACHE_HOME="$HOME/.cache/opencode-work"
 ```
+
+If `OCP_CONFIG_HOME` is set, `ocpersona` exports it as `XDG_CONFIG_HOME` for commands launched inside that profile.
 
 If `OCP_OC_BIN` is unset, `ocpersona` defaults it to the full real path of `command -v opencode` before shim interception.
 
@@ -104,6 +107,23 @@ Install into a different file instead:
 bin/ocpersona install ~/.config/zsh-antibody/ocpersona/ocpersona.plugin.zsh
 ```
 
+Clone your existing OpenCode config into a new profile:
+
+```sh
+bin/ocpersona clone-default
+bin/ocpersona clone-default lebowski
+```
+
+The source directory is `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
+If your shell already exports `XDG_CONFIG_HOME`, `clone-default` uses that value even when `HOME` points somewhere else.
+
+This creates:
+
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/<profile>.sh`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/<profile>/opencode`
+
+The generated profile file sets `OCP_CONFIG_HOME` so that the copied `opencode` config is used when the profile is active.
+
 Print shell init code:
 
 ```sh
@@ -142,6 +162,7 @@ This prints:
 - whether the current shell is using the shell integration or a direct command path
 - the active `opencode` command on `PATH`
 - `OCP_PATH`, `OCP_PROFILE`, `OCP_PROFILE_FILE`, and related variables
+- `OCP_CONFIG_HOME` and `XDG_CONFIG_HOME` when a profile defines a config home
 - profile-defined values like `OCP_OC_BIN` and profile XDG overrides when a profile file exists
 - the effective resolved `opencode` binary path
 - the current XDG directories
