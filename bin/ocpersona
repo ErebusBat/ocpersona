@@ -21,6 +21,7 @@ Commands:
   purge [profile]                  Remove a profile's config, data, state, and cache
   doctor                           Show current environment and integration info
   install [file]                   Install zsh init into a shell file
+  install-starship [file]          Install Starship config for OCP_PROFILE
   init [zsh|bash|sh]               Print shell init code
   __shim_opencode [args...]        Internal shim entrypoint
   __run_real_opencode [args...]    Internal helper
@@ -70,8 +71,41 @@ managed_config_file() {
   printf '%s/config.sh\n' "$DEFAULT_CONFIG_DIR"
 }
 
+default_starship_config() {
+  if [ -n "${STARSHIP_CONFIG:-}" ]; then
+    printf '%s\n' "$STARSHIP_CONFIG"
+    return 0
+  fi
+
+  printf '%s/.config/starship.toml\n' "$HOME"
+}
+
 runtime_shim_dir() {
   printf '%s/shims\n' "$DEFAULT_OCP_PATH"
+}
+
+remove_managed_block() {
+  target_file=$1
+  start_marker=$2
+  end_marker=$3
+
+  if grep -Fq "$start_marker" "$target_file"; then
+    tmp_file=$target_file.ocpersona.tmp
+    awk -v start="$start_marker" -v end="$end_marker" '
+      $0 == start { skipping=1; next }
+      $0 == end { skipping=0; next }
+      !skipping { print }
+    ' "$target_file" > "$tmp_file"
+    mv "$tmp_file" "$target_file"
+  fi
+}
+
+append_managed_block() {
+  target_file=$1
+  block_content=$2
+
+  [ -s "$target_file" ] && printf '\n' >> "$target_file"
+  printf '%s\n' "$block_content" >> "$target_file"
 }
 
 emit_prepend_path_snippet() {
@@ -456,6 +490,13 @@ EOF
   printf 'effective_data_home=%s\n' "$effective_data_home"
   printf 'effective_state_home=%s\n' "$effective_state_home"
   printf 'effective_cache_home=%s\n' "$effective_cache_home"
+  starship_config=$(default_starship_config)
+  starship_block_installed=no
+  if [ -f "$starship_config" ] && grep -Fq "# >>> ocpersona starship >>>" "$starship_config"; then
+    starship_block_installed=yes
+  fi
+  printf 'starship_config=%s\n' "$starship_config"
+  printf 'starship_block_installed=%s\n' "$starship_block_installed"
 }
 
 cmd_install() {
@@ -488,25 +529,47 @@ if [ -z "\${OCP_PATH:-}" ]; then
 fi
 EOF
 
-  if grep -Fq "$start_marker" "$target_file"; then
-    tmp_file=$target_file.ocpersona.tmp
-    awk -v start="$start_marker" -v end="$end_marker" '
-      $0 == start { skipping=1; next }
-      $0 == end { skipping=0; next }
-      !skipping { print }
-    ' "$target_file" > "$tmp_file"
-    mv "$tmp_file" "$target_file"
-  fi
+  remove_managed_block "$target_file" "$start_marker" "$end_marker"
 
-  [ -s "$target_file" ] && printf '\n' >> "$target_file"
-  cat >> "$target_file" <<EOF
+  append_managed_block "$target_file" "$(cat <<EOF
 $start_marker
 source "\$HOME/.config/ocpersona/config.sh"
 source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
 $end_marker
 EOF
+)"
 
   printf 'Installed ocpersona init into %s using %s\n' "$target_file" "$install_root"
+}
+
+cmd_install_starship() {
+  [ $# -le 1 ] || fail "Usage: ocpersona install-starship [file]"
+  target_file=${1:-$(default_starship_config)}
+  target_dir=$(dirname -- "$target_file")
+  start_marker="# >>> ocpersona starship >>>"
+  end_marker="# <<< ocpersona starship <<<"
+
+  mkdir -p "$target_dir"
+  [ -f "$target_file" ] || : > "$target_file"
+
+  remove_managed_block "$target_file" "$start_marker" "$end_marker"
+
+  append_managed_block "$target_file" "$(cat <<'EOF'
+# >>> ocpersona starship >>>
+# Shows the active ocpersona profile when OCP_PROFILE is set.
+# If you use a custom top-level Starship format that omits $env_var,
+# add ${env_var.OCP_PROFILE} or $env_var to that format explicitly.
+[env_var.OCP_PROFILE]
+variable = "OCP_PROFILE"
+format = "[ocp:$env_value]($style) "
+style = "bold fg:39"
+description = "The active ocpersona profile"
+# <<< ocpersona starship <<<
+EOF
+)"
+
+  printf 'Installed ocpersona Starship config into %s\n' "$target_file"
+  printf '%s\n' "If your Starship format omits \$env_var, add \$env_var or \${env_var.OCP_PROFILE} so the profile renders."
 }
 
 cmd_init() {
@@ -614,6 +677,10 @@ main() {
     install)
       shift
       cmd_install "$@"
+      ;;
+    install-starship)
+      shift
+      cmd_install_starship "$@"
       ;;
     init)
       shift

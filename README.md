@@ -109,6 +109,22 @@ Install into a different file instead:
 bin/ocpersona install ~/.config/zsh-antibody/ocpersona/ocpersona.plugin.zsh
 ```
 
+Install a managed Starship block that shows the active `OCP_PROFILE`:
+
+```sh
+bin/ocpersona install-starship
+```
+
+By default this writes to `${STARSHIP_CONFIG}`, if set, otherwise `~/.config/starship.toml`.
+It installs an `[env_var.OCP_PROFILE]` module, which works with Starship's default `format = '$all'`.
+If you use a custom Starship prompt format that omits `$env_var`, add `${env_var.OCP_PROFILE}` or `$env_var` explicitly.
+
+Install into a different Starship config file instead:
+
+```sh
+bin/ocpersona install-starship ~/.config/starship.toml
+```
+
 Clone your existing OpenCode config into a new profile:
 
 ```sh
@@ -186,6 +202,7 @@ This prints:
 - effective config and XDG home values that would apply once the selected profile is loaded
 - the effective resolved `opencode` binary path
 - the current XDG directories
+- the Starship config path `install-starship` will target and whether the managed block is present
 
 ## Zsh Plugin
 
@@ -200,6 +217,28 @@ It:
 You can source it directly or adapt it into your dotfiles. When sourced directly, it defaults `OCP_PATH` to the checkout that contains the plugin file.
 
 The `install` command appends a managed block that sources `$HOME/.config/ocpersona/config.sh` and then sources this plugin file from the current checkout. Rerunning `install` refreshes that managed `config.sh` file to the current checkout path, using a `$HOME`-relative value when possible, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
+
+## Starship
+
+If you use [Starship](https://starship.rs/), `ocpersona` can manage a small config block that displays the active `OCP_PROFILE` in your prompt:
+
+```sh
+bin/ocpersona install-starship
+```
+
+This writes an `[env_var.OCP_PROFILE]` block into `${STARSHIP_CONFIG}` or `~/.config/starship.toml` by default. The managed block is replaced on rerun, similar to `install`.
+
+The installed block looks like:
+
+```toml
+[env_var.OCP_PROFILE]
+variable = "OCP_PROFILE"
+format = "[ocp:$env_value]($style) "
+style = "bold fg:39"
+description = "The active ocpersona profile"
+```
+
+According to the Starship configuration docs, `env_var` modules are included by default when you use the default top-level prompt format (`format = '$all'`). If you use a custom format that omits `$env_var`, add `$env_var` or `${env_var.OCP_PROFILE}` explicitly so the profile module renders.
 
 ## Future Directions
 
