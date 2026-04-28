@@ -38,10 +38,11 @@ ${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/ocpersona.sh
 These files are sourced by `ocpersona` and can define values such as:
 
 ```sh
-OCP_CONFIG_HOME="${OCP_PROFILE_FILE%/*}"
+profile_dir="${OCP_PROFILE_FILE%/*}"
+OCP_CONFIG_HOME="${profile_dir}/config"
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
-OCP_DATA_HOME="$HOME/.local/share/opencode-work"
-OCP_STATE_HOME="$HOME/.local/state/opencode-work"
+OCP_DATA_HOME="${profile_dir}/data"
+OCP_STATE_HOME="${profile_dir}/state"
 OCP_CACHE_HOME="$HOME/.cache/opencode-work"
 ```
 
@@ -122,11 +123,11 @@ If present, `clone-default` also copies `${XDG_DATA_HOME:-$HOME/.local/share}/op
 This creates:
 
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/ocpersona.sh`
-- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/opencode`
-- `$HOME/.local/share/ocpersona/<profile>/opencode` when source data exists
-- `$HOME/.local/state/ocpersona/<profile>/opencode` when source state exists
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/config/opencode`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/data/opencode` when source data exists
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/state/opencode` when source state exists
 
-The generated profile file sets `OCP_CONFIG_HOME` from `OCP_PROFILE_FILE` so that the copied `opencode` config is used when the profile is active.
+The generated profile file derives `OCP_CONFIG_HOME`, `OCP_DATA_HOME`, and `OCP_STATE_HOME` from `OCP_PROFILE_FILE` so that the profile stays self-contained under one directory.
 Cache is intentionally not cloned.
 
 Purge a profile and remove all of its profile-scoped files:
@@ -139,8 +140,6 @@ bin/ocpersona purge lebowski
 This removes:
 
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>`
-- `$HOME/.local/share/ocpersona/<profile>`
-- `$HOME/.local/state/ocpersona/<profile>`
 - `$HOME/.cache/ocpersona/<profile>`
 
 Print shell init code:
@@ -198,7 +197,7 @@ It:
 - defines an `ocpersona` shell function that can activate and deactivate profiles
 - adds `ocp-on` and `ocp-off` convenience wrappers
 
-You can source it directly or adapt it into your dotfiles. It defaults `OCP_PATH` to `~/.local/share/ocpersona`.
+You can source it directly or adapt it into your dotfiles. When sourced directly, it defaults `OCP_PATH` to the checkout that contains the plugin file.
 
 The `install` command appends a managed block that sources `$HOME/.config/ocpersona/config.sh` and then sources this plugin file from the current checkout. Rerunning `install` refreshes that managed `config.sh` file to the current checkout path, using a `$HOME`-relative value when possible, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
 
