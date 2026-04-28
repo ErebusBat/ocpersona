@@ -1,0 +1,382 @@
+#!/bin/sh
+
+set -eu
+
+SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SOURCE_ROOT=$(CDPATH= cd -- "$SELF_DIR/.." && pwd)
+SOURCE_SHIM_DIR=${OCP_SHIM_DIR:-"$SOURCE_ROOT/shims"}
+DEFAULT_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
+DEFAULT_OCP_PATH=${OCP_PATH:-"$SOURCE_ROOT"}
+
+usage() {
+  cat <<EOF
+Usage: ocpersona <command> [options]
+
+Commands:
+  exec <profile> -- <command...>   Run a command inside a profile
+  activate <profile>               Print shell code to activate a profile
+  deactivate                       Print shell code to deactivate the profile
+  doctor                           Show current environment and integration info
+  install [file]                   Install zsh init into a shell file
+  init [zsh|bash|sh]               Print shell init code
+  __shim_opencode [args...]        Internal shim entrypoint
+  __run_real_opencode [args...]    Internal helper
+  help                             Show this help
+EOF
+}
+
+fail() {
+  printf '%s\n' "$*" >&2
+  exit 1
+}
+
+ensure_profile_name() {
+  case "$1" in
+    "") fail "Profile name is required" ;;
+    *[!A-Za-z0-9._-]*)
+      fail "Invalid profile name: $1"
+      ;;
+  esac
+}
+
+profile_file_for() {
+  printf '%s/%s.sh\n' "$DEFAULT_CONFIG_DIR" "$1"
+}
+
+runtime_shim_dir() {
+  printf '%s/shims\n' "$DEFAULT_OCP_PATH"
+}
+
+default_shell_rc() {
+  if [ -n "${ZSHRC:-}" ]; then
+    printf '%s\n' "$ZSHRC"
+    return 0
+  fi
+
+  if [ -n "${ZDOTDIR:-}" ]; then
+    printf '%s/.zshrc\n' "$ZDOTDIR"
+    return 0
+  fi
+
+  printf '%s/.zshrc\n' "$HOME"
+}
+
+resolve_real_command() {
+  command_name=$1
+  old_ifs=${IFS}
+  IFS=:
+  for path_dir in $PATH; do
+    IFS=${old_ifs}
+    [ -n "$path_dir" ] || path_dir=.
+    [ "$path_dir" = "$SOURCE_SHIM_DIR" ] && continue
+    [ "$path_dir" = "$(runtime_shim_dir)" ] && continue
+    candidate=$path_dir/$command_name
+    if [ -x "$candidate" ] && [ ! -d "$candidate" ]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+    IFS=:
+  done
+  IFS=${old_ifs}
+  return 1
+}
+
+resolve_realpath() {
+  target=$1
+  python3 - "$target" <<'PY'
+import os
+import sys
+print(os.path.realpath(sys.argv[1]))
+PY
+}
+
+default_oc_bin() {
+  resolved=$(resolve_real_command opencode) || fail "Could not locate real opencode on PATH"
+  resolve_realpath "$resolved"
+}
+
+load_profile() {
+  profile_name=$1
+  ensure_profile_name "$profile_name"
+  profile_file=$(profile_file_for "$profile_name")
+  [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
+
+  export OCP_PROFILE=$profile_name
+  export OCP_PROFILE_FILE=$profile_file
+  export OCP_PATH=${OCP_PATH:-$DEFAULT_OCP_PATH}
+  export OCP_SHIM_DIR=${OCP_SHIM_DIR:-$SOURCE_SHIM_DIR}
+  export OCP_CONFIG_DIR=$DEFAULT_CONFIG_DIR
+
+  set -a
+  # shellcheck source=/dev/null
+  . "$profile_file"
+  set +a
+
+  : "${OCP_DATA_HOME:=$HOME/.local/share/ocpersona/$OCP_PROFILE}"
+  : "${OCP_STATE_HOME:=$HOME/.local/state/ocpersona/$OCP_PROFILE}"
+  : "${OCP_CACHE_HOME:=$HOME/.cache/ocpersona/$OCP_PROFILE}"
+
+  export OCP_DATA_HOME
+  export OCP_STATE_HOME
+  export OCP_CACHE_HOME
+
+  export XDG_DATA_HOME=$OCP_DATA_HOME
+  export XDG_STATE_HOME=$OCP_STATE_HOME
+  export XDG_CACHE_HOME=$OCP_CACHE_HOME
+
+  case ":$PATH:" in
+    *":$OCP_SHIM_DIR:"*) ;;
+    *) PATH=$OCP_SHIM_DIR:$PATH ;;
+  esac
+  export PATH
+  export OCP_ACTIVE=1
+}
+
+cmd_exec() {
+  [ $# -ge 3 ] || fail "Usage: ocpersona exec <profile> -- <command...>"
+  profile_name=$1
+  shift
+  [ "$1" = "--" ] || fail "Usage: ocpersona exec <profile> -- <command...>"
+  shift
+  [ $# -gt 0 ] || fail "A command is required"
+
+  load_profile "$profile_name"
+  exec "$@"
+}
+
+cmd_activate() {
+  [ $# -eq 1 ] || fail "Usage: ocpersona activate <profile>"
+  profile_name=$1
+  ensure_profile_name "$profile_name"
+  profile_file=$(profile_file_for "$profile_name")
+  [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
+
+  cat <<EOF
+export OCP_PROFILE='$profile_name'
+export OCP_PROFILE_FILE='$profile_file'
+export OCP_CONFIG_DIR='${DEFAULT_CONFIG_DIR}'
+export OCP_PATH='${DEFAULT_OCP_PATH}'
+export OCP_SHIM_DIR='$(runtime_shim_dir)'
+case ":\$PATH:" in
+  *":$(runtime_shim_dir):"*) ;;
+  *) export PATH="$(runtime_shim_dir):\$PATH" ;;
+esac
+unset OCP_ACTIVE
+unset OCP_DATA_HOME
+unset OCP_STATE_HOME
+unset OCP_CACHE_HOME
+unset XDG_DATA_HOME
+unset XDG_STATE_HOME
+unset XDG_CACHE_HOME
+EOF
+}
+
+cmd_deactivate() {
+  cat <<EOF
+unset OCP_PROFILE
+unset OCP_PROFILE_FILE
+unset OCP_ACTIVE
+unset OCP_DATA_HOME
+unset OCP_STATE_HOME
+unset OCP_CACHE_HOME
+unset XDG_DATA_HOME
+unset XDG_STATE_HOME
+unset XDG_CACHE_HOME
+EOF
+}
+
+cmd_doctor() {
+  integration_mode=direct-command
+  if [ "${OCP_SHELL_INTEGRATION:-0}" = "1" ]; then
+    integration_mode=shell-function
+  fi
+
+  current_opencode=$(command -v opencode 2>/dev/null || true)
+  active_profile=${OCP_PROFILE:-}
+  profile_file=${OCP_PROFILE_FILE:-}
+  profile_exists=no
+  if [ -n "$profile_file" ] && [ -f "$profile_file" ]; then
+    profile_exists=yes
+  fi
+
+  profile_oc_bin=
+  profile_data_home=
+  profile_state_home=
+  profile_cache_home=
+  if [ "$profile_exists" = "yes" ]; then
+    profile_dump=$(PROFILE_FILE="$profile_file" /bin/sh <<'EOF'
+set -eu
+set -a
+. "$PROFILE_FILE"
+set +a
+printf 'profile_oc_bin=%s\n' "${OCP_OC_BIN:-}"
+printf 'profile_data_home=%s\n' "${OCP_DATA_HOME:-}"
+printf 'profile_state_home=%s\n' "${OCP_STATE_HOME:-}"
+printf 'profile_cache_home=%s\n' "${OCP_CACHE_HOME:-}"
+EOF
+)
+    profile_oc_bin=$(printf '%s\n' "$profile_dump" | sed -n 's/^profile_oc_bin=//p')
+    profile_data_home=$(printf '%s\n' "$profile_dump" | sed -n 's/^profile_data_home=//p')
+    profile_state_home=$(printf '%s\n' "$profile_dump" | sed -n 's/^profile_state_home=//p')
+    profile_cache_home=$(printf '%s\n' "$profile_dump" | sed -n 's/^profile_cache_home=//p')
+  fi
+
+  effective_oc_bin=${OCP_OC_BIN:-}
+  if [ -z "$effective_oc_bin" ]; then
+    if [ -n "$profile_oc_bin" ]; then
+      effective_oc_bin=$profile_oc_bin
+    else
+      effective_oc_bin=$(default_oc_bin)
+    fi
+  fi
+
+  printf 'integration_mode=%s\n' "$integration_mode"
+  printf 'opencode_command=%s\n' "${current_opencode:-}"
+  printf 'ocpersona_source=%s\n' "$SOURCE_ROOT"
+  printf 'ocp_path=%s\n' "${OCP_PATH:-$DEFAULT_OCP_PATH}"
+  printf 'ocp_shim_dir=%s\n' "${OCP_SHIM_DIR:-}"
+  printf 'ocp_profile=%s\n' "$active_profile"
+  printf 'ocp_profile_file=%s\n' "$profile_file"
+  printf 'ocp_profile_file_exists=%s\n' "$profile_exists"
+  printf 'ocp_config_dir=%s\n' "${OCP_CONFIG_DIR:-$DEFAULT_CONFIG_DIR}"
+  printf 'ocp_oc_bin=%s\n' "${OCP_OC_BIN:-}"
+  printf 'profile_oc_bin=%s\n' "$profile_oc_bin"
+  printf 'effective_oc_bin=%s\n' "$effective_oc_bin"
+  printf 'ocp_active=%s\n' "${OCP_ACTIVE:-0}"
+  printf 'xdg_data_home=%s\n' "${XDG_DATA_HOME:-}"
+  printf 'xdg_state_home=%s\n' "${XDG_STATE_HOME:-}"
+  printf 'xdg_cache_home=%s\n' "${XDG_CACHE_HOME:-}"
+  printf 'profile_data_home=%s\n' "$profile_data_home"
+  printf 'profile_state_home=%s\n' "$profile_state_home"
+  printf 'profile_cache_home=%s\n' "$profile_cache_home"
+}
+
+cmd_install() {
+  [ $# -le 1 ] || fail "Usage: ocpersona install [file]"
+  target_file=${1:-$(default_shell_rc)}
+  target_dir=$(dirname -- "$target_file")
+  install_root=$SOURCE_ROOT
+  start_marker="# >>> ocpersona >>>"
+  end_marker="# <<< ocpersona <<<"
+  tmp_file=
+
+  mkdir -p "$target_dir"
+  [ -f "$target_file" ] || : > "$target_file"
+
+  if grep -Fq "$start_marker" "$target_file"; then
+    tmp_file=$target_file.ocpersona.tmp
+    awk -v start="$start_marker" -v end="$end_marker" '
+      $0 == start { skipping=1; next }
+      $0 == end { skipping=0; next }
+      !skipping { print }
+    ' "$target_file" > "$tmp_file"
+    mv "$tmp_file" "$target_file"
+  fi
+
+  [ -s "$target_file" ] && printf '\n' >> "$target_file"
+  cat >> "$target_file" <<EOF
+$start_marker
+export OCP_PATH="${install_root}"
+source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
+$end_marker
+EOF
+
+  printf 'Installed ocpersona init into %s using %s\n' "$target_file" "$install_root"
+}
+
+cmd_init() {
+  shell_name=${1:-sh}
+  case "$shell_name" in
+    zsh|bash|sh) ;;
+    *)
+      fail "Unsupported shell: $shell_name"
+      ;;
+  esac
+
+  cat <<EOF
+export OCP_PATH="${DEFAULT_OCP_PATH}"
+export OCP_SHIM_DIR="\${OCP_PATH}/shims"
+export OCP_SHELL_INTEGRATION=1
+case ":\$PATH:" in
+  *":\${OCP_SHIM_DIR}:"*) ;;
+  *) export PATH="\${OCP_SHIM_DIR}:\$PATH" ;;
+esac
+ocpersona() {
+  case "\${1:-}" in
+    activate)
+      shift
+      eval "\$(command "\${OCP_PATH}/bin/ocpersona" activate "\$@")"
+      ;;
+    deactivate)
+      shift
+      eval "\$(command "\${OCP_PATH}/bin/ocpersona" deactivate "\$@")"
+      ;;
+    *)
+      command "\${OCP_PATH}/bin/ocpersona" "\$@"
+      ;;
+  esac
+}
+EOF
+}
+
+cmd_run_real_opencode() {
+  oc_bin=${OCP_OC_BIN:-}
+  if [ -z "$oc_bin" ]; then
+    oc_bin=$(default_oc_bin)
+  fi
+  exec "$oc_bin" "$@"
+}
+
+cmd_shim_opencode() {
+  if [ "${OCP_PROFILE:-}" != "" ] && [ "${OCP_ACTIVE:-0}" != "1" ]; then
+    exec "$SOURCE_ROOT/bin/ocpersona" exec "$OCP_PROFILE" -- "$SOURCE_ROOT/bin/ocpersona" __run_real_opencode "$@"
+  fi
+
+  cmd_run_real_opencode "$@"
+}
+
+main() {
+  command_name=${1:-help}
+  case "$command_name" in
+    exec)
+      shift
+      cmd_exec "$@"
+      ;;
+    activate)
+      shift
+      cmd_activate "$@"
+      ;;
+    deactivate)
+      shift
+      cmd_deactivate "$@"
+      ;;
+    doctor)
+      shift
+      cmd_doctor "$@"
+      ;;
+    install)
+      shift
+      cmd_install "$@"
+      ;;
+    init)
+      shift
+      cmd_init "$@"
+      ;;
+    __shim_opencode)
+      shift
+      cmd_shim_opencode "$@"
+      ;;
+    __run_real_opencode)
+      shift
+      cmd_run_real_opencode "$@"
+      ;;
+    help|-h|--help)
+      usage
+      ;;
+    *)
+      fail "Unknown command: $command_name"
+      ;;
+  esac
+}
+
+main "$@"

@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -eu
+
+SHIM_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO_ROOT=$(CDPATH= cd -- "$SHIM_DIR/.." && pwd)
+
+exec "$REPO_ROOT/bin/ocpersona" __shim_opencode "$@"

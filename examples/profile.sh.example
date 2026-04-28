@@ -1,0 +1,14 @@
+# Example ocpersona profile.
+#
+# Copy this to:
+#   ~/.config/ocpersona/<profile>.sh
+#
+# Then customize it for the selected profile.
+
+OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
+
+# Override the default isolated XDG locations if you want stable,
+# human-readable directories per profile.
+OCP_DATA_HOME="$HOME/.local/share/opencode-example"
+OCP_STATE_HOME="$HOME/.local/state/opencode-example"
+OCP_CACHE_HOME="$HOME/.cache/opencode-example"
