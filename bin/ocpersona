@@ -49,10 +49,6 @@ profile_config_home_for() {
   printf '%s/%s\n' "$DEFAULT_PROFILES_DIR" "$1"
 }
 
-resolved_profile_name() {
-  printf '%s\n' "${OCP_PROFILE:-${OCP_DEFAULT_PROFILE:-default}}"
-}
-
 managed_config_file() {
   printf '%s/config.sh\n' "$DEFAULT_CONFIG_DIR"
 }
@@ -193,7 +189,7 @@ cmd_exec() {
 
 cmd_activate() {
   [ $# -le 1 ] || fail "Usage: ocpersona activate [profile]"
-  profile_name=${1:-$(resolved_profile_name)}
+  profile_name=${1:-${OCP_DEFAULT_PROFILE:-default}}
   ensure_profile_name "$profile_name"
   profile_file=$(profile_file_for "$profile_name")
   [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
@@ -508,12 +504,8 @@ cmd_run_real_opencode() {
 }
 
 cmd_shim_opencode() {
-  profile_name=$(resolved_profile_name)
-  if [ "${OCP_ACTIVE:-0}" != "1" ] && [ -n "$profile_name" ]; then
-    profile_file=$(profile_file_for "$profile_name")
-    if [ -f "$profile_file" ]; then
-      exec "$SOURCE_ROOT/bin/ocpersona" exec "$profile_name" -- "$SOURCE_ROOT/bin/ocpersona" __run_real_opencode "$@"
-    fi
+  if [ "${OCP_PROFILE:-}" != "" ] && [ "${OCP_ACTIVE:-0}" != "1" ]; then
+    exec "$SOURCE_ROOT/bin/ocpersona" exec "$OCP_PROFILE" -- "$SOURCE_ROOT/bin/ocpersona" __run_real_opencode "$@"
   fi
 
   cmd_run_real_opencode "$@"
