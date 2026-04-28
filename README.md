@@ -79,10 +79,7 @@ Print shell code to activate a profile:
 
 ```sh
 bin/ocpersona activate lshq
-bin/ocpersona activate
 ```
-
-With no argument, `activate` uses `${OCP_DEFAULT_PROFILE:-default}`.
 
 Activate it in the current shell:
 
@@ -137,13 +134,10 @@ eval "$(bin/ocpersona init zsh)"
 After init, the `ocpersona` shell function handles activation for you:
 
 ```sh
-ocp-on
 ocpersona activate lshq
 opencode
 ocpersona deactivate
 ```
-
-`ocp-on` with no argument behaves like `ocp-on ${OCP_DEFAULT_PROFILE:-default}`.
 
 With an active profile, normal `opencode` usage is routed through the shim:
 

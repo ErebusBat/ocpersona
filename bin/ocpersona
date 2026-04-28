@@ -15,7 +15,7 @@ Usage: ocpersona <command> [options]
 
 Commands:
   exec <profile> -- <command...>   Run a command inside a profile
-  activate [profile]               Print shell code to activate a profile
+  activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
   clone-default [profile]          Clone ~/.config/opencode into a profile
   doctor                           Show current environment and integration info
@@ -188,8 +188,8 @@ cmd_exec() {
 }
 
 cmd_activate() {
-  [ $# -le 1 ] || fail "Usage: ocpersona activate [profile]"
-  profile_name=${1:-${OCP_DEFAULT_PROFILE:-default}}
+  [ $# -eq 1 ] || fail "Usage: ocpersona activate <profile>"
+  profile_name=$1
   ensure_profile_name "$profile_name"
   profile_file=$(profile_file_for "$profile_name")
   [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
