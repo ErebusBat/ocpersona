@@ -24,6 +24,8 @@ The `opencode` shim is intentionally thin:
 
 - if `OCP_PROFILE` is unset, it falls through to the real `opencode`
 - if `OCP_PROFILE` is set, it delegates back to `ocpersona`
+- if `OCP_PROFILE` is unset, it also checks `OCP_DEFAULT_PROFILE`, then `default`
+- if the resolved profile file does not exist, it falls through to the real `opencode`
 
 This allows commands like `ocx oc -p lshq` to stay inside the selected profile when `ocx` shells out to `opencode`.
 
@@ -139,10 +141,17 @@ opencode
 ocpersona deactivate
 ```
 
-With an active profile, normal `opencode` usage is routed through the shim:
+With an active or default profile, normal `opencode` usage is routed through the shim:
 
 ```sh
 export OCP_PROFILE=lshq
+opencode
+```
+
+You can also set a default profile for the shim:
+
+```sh
+export OCP_DEFAULT_PROFILE=default
 opencode
 ```
 
