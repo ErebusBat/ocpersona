@@ -7,6 +7,7 @@ SOURCE_ROOT=$(CDPATH= cd -- "$SELF_DIR/.." && pwd)
 SOURCE_SHIM_DIR=${OCP_SHIM_DIR:-"$SOURCE_ROOT/shims"}
 DEFAULT_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
 DEFAULT_OCP_PATH=${OCP_PATH:-"$SOURCE_ROOT"}
+DEFAULT_PROFILES_DIR=$DEFAULT_CONFIG_DIR/profiles
 
 usage() {
   cat <<EOF
@@ -41,11 +42,15 @@ ensure_profile_name() {
 }
 
 profile_file_for() {
-  printf '%s/%s.sh\n' "$DEFAULT_CONFIG_DIR" "$1"
+  printf '%s/%s.sh\n' "$DEFAULT_PROFILES_DIR" "$1"
 }
 
 profile_config_home_for() {
-  printf '%s/%s\n' "$DEFAULT_CONFIG_DIR" "$1"
+  printf '%s/%s\n' "$DEFAULT_PROFILES_DIR" "$1"
+}
+
+managed_config_file() {
+  printf '%s/config.sh\n' "$DEFAULT_CONFIG_DIR"
 }
 
 runtime_shim_dir() {
@@ -215,7 +220,7 @@ cmd_clone_default() {
   [ ! -e "$profile_file" ] || fail "Profile file already exists: $profile_file"
   [ ! -e "$profile_config_home" ] || fail "Profile config directory already exists: $profile_config_home"
 
-  mkdir -p "$DEFAULT_CONFIG_DIR"
+  mkdir -p "$DEFAULT_PROFILES_DIR"
   mkdir -p "$profile_config_home"
   cp -R "$source_config_dir" "$target_config_dir"
 
@@ -304,12 +309,21 @@ cmd_install() {
   target_file=${1:-$(default_shell_rc)}
   target_dir=$(dirname -- "$target_file")
   install_root=$SOURCE_ROOT
+  config_file=$(managed_config_file)
+  config_dir=$(dirname -- "$config_file")
   start_marker="# >>> ocpersona >>>"
   end_marker="# <<< ocpersona <<<"
   tmp_file=
 
   mkdir -p "$target_dir"
+  mkdir -p "$config_dir"
   [ -f "$target_file" ] || : > "$target_file"
+
+  cat > "$config_file" <<EOF
+if [ -z "\${OCP_PATH:-}" ]; then
+  OCP_PATH="${install_root}"
+fi
+EOF
 
   if grep -Fq "$start_marker" "$target_file"; then
     tmp_file=$target_file.ocpersona.tmp
@@ -324,7 +338,7 @@ cmd_install() {
   [ -s "$target_file" ] && printf '\n' >> "$target_file"
   cat >> "$target_file" <<EOF
 $start_marker
-export OCP_PATH="${install_root}"
+source "${config_file}"
 source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
 $end_marker
 EOF

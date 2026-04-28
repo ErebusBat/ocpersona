@@ -32,7 +32,7 @@ This allows commands like `ocx oc -p lshq` to stay inside the selected profile w
 By default, profile files are loaded from:
 
 ```text
-${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/<profile>.sh
+${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>.sh
 ```
 
 These files are sourced by `ocpersona` and can define values such as:
@@ -99,7 +99,7 @@ bin/ocpersona install
 ```
 
 By default this writes to `${ZSHRC}`, then `${ZDOTDIR}/.zshrc`, then `~/.zshrc`.
-It sets `OCP_PATH` to the checkout you ran `install` from and sources that checkout's `contrib/ocpersona.plugin.zsh`.
+It writes `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh`, which sets `OCP_PATH` if it is unset, and sources that checkout's `contrib/ocpersona.plugin.zsh`.
 
 Install into a different file instead:
 
@@ -119,8 +119,8 @@ If your shell already exports `XDG_CONFIG_HOME`, `clone-default` uses that value
 
 This creates:
 
-- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/<profile>.sh`
-- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/<profile>/opencode`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>.sh`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/opencode`
 
 The generated profile file sets `OCP_CONFIG_HOME` so that the copied `opencode` config is used when the profile is active.
 
@@ -179,7 +179,7 @@ It:
 
 You can source it directly or adapt it into your dotfiles. It defaults `OCP_PATH` to `~/.local/share/ocpersona`.
 
-The `install` command appends a managed block that sets `OCP_PATH` and sources this plugin file from the current checkout. Rerunning `install` refreshes that block to the current checkout path, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
+The `install` command appends a managed block that sources `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh` and then sources this plugin file from the current checkout. Rerunning `install` refreshes that managed `config.sh` file to the current checkout path, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
 
 ## Future Directions
 

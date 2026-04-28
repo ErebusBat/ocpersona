@@ -1,7 +1,7 @@
 # Example ocpersona profile.
 #
 # Copy this to:
-#   ~/.config/ocpersona/<profile>.sh
+#   ~/.config/ocpersona/profiles/<profile>.sh
 #
 # Then customize it for the selected profile.
 
