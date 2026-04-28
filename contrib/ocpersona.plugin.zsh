@@ -10,7 +10,11 @@ eval "$(${OCP_PATH}/bin/ocpersona init zsh)"
 
 alias ocp="${OCP_PATH}/bin/ocpersona"
 ocp-on() {
-  ocpersona activate "$@"
+  if (( $# == 0 )); then
+    ocpersona activate
+  else
+    ocpersona activate "$@"
+  fi
 }
 
 ocp-off() {
