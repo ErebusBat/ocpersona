@@ -163,8 +163,10 @@ This prints:
 - whether the current shell is using the shell integration or a direct command path
 - the active `opencode` command on `PATH`
 - `OCP_PATH`, `OCP_PROFILE`, `OCP_PROFILE_FILE`, and related variables
+- whether a profile is selected and whether its runtime environment is currently loaded
 - `OCP_CONFIG_HOME` and `XDG_CONFIG_HOME` when a profile defines a config home
 - profile-defined values like `OCP_OC_BIN` and profile XDG overrides when a profile file exists
+- effective config and XDG home values that would apply once the selected profile is loaded
 - the effective resolved `opencode` binary path
 - the current XDG directories
 

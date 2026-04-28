@@ -277,6 +277,8 @@ cmd_doctor() {
   current_opencode=$(command -v opencode 2>/dev/null || true)
   active_profile=${OCP_PROFILE:-}
   profile_file=${OCP_PROFILE_FILE:-}
+  profile_selected=no
+  [ -n "$active_profile" ] && profile_selected=yes
   profile_exists=no
   if [ -n "$profile_file" ] && [ -f "$profile_file" ]; then
     profile_exists=yes
@@ -316,6 +318,43 @@ EOF
     fi
   fi
 
+  runtime_loaded=no
+  if [ "${OCP_ACTIVE:-0}" = "1" ]; then
+    runtime_loaded=yes
+  fi
+
+  effective_config_home=${OCP_CONFIG_HOME:-}
+  if [ -z "$effective_config_home" ] && [ -n "$profile_config_home" ]; then
+    effective_config_home=$profile_config_home
+  fi
+
+  effective_data_home=${XDG_DATA_HOME:-}
+  if [ -z "$effective_data_home" ]; then
+    if [ -n "$profile_data_home" ]; then
+      effective_data_home=$profile_data_home
+    elif [ -n "$active_profile" ]; then
+      effective_data_home=$HOME/.local/share/ocpersona/$active_profile
+    fi
+  fi
+
+  effective_state_home=${XDG_STATE_HOME:-}
+  if [ -z "$effective_state_home" ]; then
+    if [ -n "$profile_state_home" ]; then
+      effective_state_home=$profile_state_home
+    elif [ -n "$active_profile" ]; then
+      effective_state_home=$HOME/.local/state/ocpersona/$active_profile
+    fi
+  fi
+
+  effective_cache_home=${XDG_CACHE_HOME:-}
+  if [ -z "$effective_cache_home" ]; then
+    if [ -n "$profile_cache_home" ]; then
+      effective_cache_home=$profile_cache_home
+    elif [ -n "$active_profile" ]; then
+      effective_cache_home=$HOME/.cache/ocpersona/$active_profile
+    fi
+  fi
+
   printf 'integration_mode=%s\n' "$integration_mode"
   printf 'opencode_command=%s\n' "${current_opencode:-}"
   printf 'ocpersona_source=%s\n' "$SOURCE_ROOT"
@@ -324,11 +363,14 @@ EOF
   printf 'ocp_profile=%s\n' "$active_profile"
   printf 'ocp_profile_file=%s\n' "$profile_file"
   printf 'ocp_profile_file_exists=%s\n' "$profile_exists"
+  printf 'profile_selected=%s\n' "$profile_selected"
+  printf 'profile_runtime_loaded=%s\n' "$runtime_loaded"
   printf 'ocp_config_dir=%s\n' "${OCP_CONFIG_DIR:-$DEFAULT_CONFIG_DIR}"
   printf 'ocp_config_home=%s\n' "${OCP_CONFIG_HOME:-}"
   printf 'ocp_oc_bin=%s\n' "${OCP_OC_BIN:-}"
   printf 'profile_oc_bin=%s\n' "$profile_oc_bin"
   printf 'profile_config_home=%s\n' "$profile_config_home"
+  printf 'effective_config_home=%s\n' "$effective_config_home"
   printf 'effective_oc_bin=%s\n' "$effective_oc_bin"
   printf 'ocp_active=%s\n' "${OCP_ACTIVE:-0}"
   printf 'xdg_config_home=%s\n' "${XDG_CONFIG_HOME:-}"
@@ -338,6 +380,9 @@ EOF
   printf 'profile_data_home=%s\n' "$profile_data_home"
   printf 'profile_state_home=%s\n' "$profile_state_home"
   printf 'profile_cache_home=%s\n' "$profile_cache_home"
+  printf 'effective_data_home=%s\n' "$effective_data_home"
+  printf 'effective_state_home=%s\n' "$effective_state_home"
+  printf 'effective_cache_home=%s\n' "$effective_cache_home"
 }
 
 cmd_install() {
