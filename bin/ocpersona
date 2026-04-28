@@ -18,6 +18,7 @@ Commands:
   activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
   clone-default [profile]          Clone ~/.config/opencode into a profile
+  purge [profile]                  Remove a profile's config, data, state, and cache
   doctor                           Show current environment and integration info
   install [file]                   Install zsh init into a shell file
   init [zsh|bash|sh]               Print shell init code
@@ -55,6 +56,10 @@ profile_data_home_for() {
 
 profile_state_home_for() {
   printf '%s/.local/state/ocpersona/%s\n' "$HOME" "$1"
+}
+
+profile_cache_home_for() {
+  printf '%s/.cache/ocpersona/%s\n' "$HOME" "$1"
 }
 
 managed_config_file() {
@@ -298,6 +303,44 @@ EOF
   if [ -d "$source_state_dir" ]; then
     printf 'Cloned %s into %s\n' "$source_state_dir" "$target_state_dir"
   fi
+}
+
+cmd_purge() {
+  [ $# -le 1 ] || fail "Usage: ocpersona purge [profile]"
+
+  profile_name=${1:-${OCP_PROFILE:-default}}
+  ensure_profile_name "$profile_name"
+
+  profile_config_home=$(profile_config_home_for "$profile_name")
+  profile_data_home=$(profile_data_home_for "$profile_name")
+  profile_state_home=$(profile_state_home_for "$profile_name")
+  profile_cache_home=$(profile_cache_home_for "$profile_name")
+
+  found_any=0
+  for purge_path in \
+    "$profile_config_home" \
+    "$profile_data_home" \
+    "$profile_state_home" \
+    "$profile_cache_home"
+  do
+    if [ -e "$purge_path" ]; then
+      found_any=1
+      break
+    fi
+  done
+
+  if [ "$found_any" -ne 1 ]; then
+    printf 'Profile already absent: %s\n' "$profile_name"
+    return 0
+  fi
+
+  rm -rf \
+    "$profile_config_home" \
+    "$profile_data_home" \
+    "$profile_state_home" \
+    "$profile_cache_home"
+
+  printf 'Purged profile %s\n' "$profile_name"
 }
 
 cmd_doctor() {
@@ -561,6 +604,10 @@ main() {
     clone-default)
       shift
       cmd_clone_default "$@"
+      ;;
+    purge)
+      shift
+      cmd_purge "$@"
       ;;
     doctor)
       shift

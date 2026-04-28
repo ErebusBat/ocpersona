@@ -129,6 +129,20 @@ This creates:
 The generated profile file sets `OCP_CONFIG_HOME` from `OCP_PROFILE_FILE` so that the copied `opencode` config is used when the profile is active.
 Cache is intentionally not cloned.
 
+Purge a profile and remove all of its profile-scoped files:
+
+```sh
+bin/ocpersona purge
+bin/ocpersona purge lebowski
+```
+
+This removes:
+
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>`
+- `$HOME/.local/share/ocpersona/<profile>`
+- `$HOME/.local/state/ocpersona/<profile>`
+- `$HOME/.cache/ocpersona/<profile>`
+
 Print shell init code:
 
 ```sh
