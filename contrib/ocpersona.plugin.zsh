@@ -8,6 +8,7 @@ fi
 
 eval "$(${OCP_PATH}/bin/ocpersona init zsh)"
 
+alias ocp="${OCP_PATH}/bin/ocpersona"
 ocp-on() {
   ocpersona activate "$@"
 }
