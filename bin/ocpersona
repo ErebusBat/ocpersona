@@ -57,6 +57,35 @@ runtime_shim_dir() {
   printf '%s/shims\n' "$DEFAULT_OCP_PATH"
 }
 
+emit_prepend_path_snippet() {
+  shim_dir=$1
+  cat <<EOF
+path_without_shim=
+old_ifs=\$IFS
+IFS=:
+for path_dir in \$PATH; do
+  IFS=\$old_ifs
+  [ -n "\$path_dir" ] || path_dir=.
+  [ "\$path_dir" = "$shim_dir" ] && continue
+  if [ -n "\${path_without_shim:-}" ]; then
+    path_without_shim=\${path_without_shim}:\$path_dir
+  else
+    path_without_shim=\$path_dir
+  fi
+  IFS=:
+done
+IFS=\$old_ifs
+if [ -n "\${path_without_shim:-}" ]; then
+  export PATH="$shim_dir:\$path_without_shim"
+else
+  export PATH="$shim_dir"
+fi
+unset path_without_shim
+unset old_ifs
+unset path_dir
+EOF
+}
+
 default_shell_rc() {
   if [ -n "${ZSHRC:-}" ]; then
     printf '%s\n' "$ZSHRC"
@@ -171,10 +200,7 @@ export OCP_PROFILE_FILE='$profile_file'
 export OCP_CONFIG_DIR='${DEFAULT_CONFIG_DIR}'
 export OCP_PATH='${DEFAULT_OCP_PATH}'
 export OCP_SHIM_DIR='$(runtime_shim_dir)'
-case ":\$PATH:" in
-  *":$(runtime_shim_dir):"*) ;;
-  *) export PATH="$(runtime_shim_dir):\$PATH" ;;
-esac
+$(emit_prepend_path_snippet "$(runtime_shim_dir)")
 if command -v rehash >/dev/null 2>&1; then
   rehash
 elif command -v hash >/dev/null 2>&1; then
@@ -378,10 +404,29 @@ cmd_init() {
 export OCP_PATH="${DEFAULT_OCP_PATH}"
 export OCP_SHIM_DIR="\${OCP_PATH}/shims"
 export OCP_SHELL_INTEGRATION=1
-case ":\$PATH:" in
-  *":\${OCP_SHIM_DIR}:"*) ;;
-  *) export PATH="\${OCP_SHIM_DIR}:\$PATH" ;;
-esac
+path_without_shim=
+old_ifs=\$IFS
+IFS=:
+for path_dir in \$PATH; do
+  IFS=\$old_ifs
+  [ -n "\$path_dir" ] || path_dir=.
+  [ "\$path_dir" = "\${OCP_SHIM_DIR}" ] && continue
+  if [ -n "\${path_without_shim:-}" ]; then
+    path_without_shim=\${path_without_shim}:\$path_dir
+  else
+    path_without_shim=\$path_dir
+  fi
+  IFS=:
+done
+IFS=\$old_ifs
+if [ -n "\${path_without_shim:-}" ]; then
+  export PATH="\${OCP_SHIM_DIR}:\$path_without_shim"
+else
+  export PATH="\${OCP_SHIM_DIR}"
+fi
+unset path_without_shim
+unset old_ifs
+unset path_dir
 if command -v rehash >/dev/null 2>&1; then
   rehash
 elif command -v hash >/dev/null 2>&1; then
