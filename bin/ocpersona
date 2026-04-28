@@ -309,6 +309,15 @@ cmd_install() {
   target_file=${1:-$(default_shell_rc)}
   target_dir=$(dirname -- "$target_file")
   install_root=$SOURCE_ROOT
+  install_root_value=$install_root
+  case "$install_root" in
+    "$HOME")
+      install_root_value=\$HOME
+      ;;
+    "$HOME"/*)
+      install_root_value=\$HOME${install_root#"$HOME"}
+      ;;
+  esac
   config_file=$(managed_config_file)
   config_dir=$(dirname -- "$config_file")
   start_marker="# >>> ocpersona >>>"
@@ -321,7 +330,7 @@ cmd_install() {
 
   cat > "$config_file" <<EOF
 if [ -z "\${OCP_PATH:-}" ]; then
-  OCP_PATH="${install_root}"
+  OCP_PATH="${install_root_value}"
 fi
 EOF
 
