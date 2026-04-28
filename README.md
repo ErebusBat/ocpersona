@@ -146,6 +146,19 @@ This creates:
 The generated profile file derives `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_STATE_HOME` from `OCP_PROFILE_FILE` so that the profile stays self-contained under one directory.
 Cache is intentionally not cloned.
 
+Clone one ocpersona profile into another:
+
+```sh
+bin/ocpersona clone default lshq
+```
+
+This copies:
+
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<source>` to `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<target>`
+- `$HOME/.cache/ocpersona/<source>` to `$HOME/.cache/ocpersona/<target>` when cache exists
+
+Because the profile file derives `XDG_*` paths from `OCP_PROFILE_FILE`, the cloned profile becomes self-contained under its new name without further edits.
+
 Purge a profile and remove all of its profile-scoped files:
 
 ```sh

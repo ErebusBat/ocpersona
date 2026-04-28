@@ -17,6 +17,7 @@ Commands:
   exec <profile> -- <command...>   Run a command inside a profile
   activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
+  clone <source> <target>          Clone one ocpersona profile into another
   clone-default [profile]          Clone ~/.config/opencode into a profile
   purge [profile]                  Remove a profile's config, data, state, and cache
   doctor                           Show current environment and integration info
@@ -328,6 +329,39 @@ EOF
   fi
   if [ -d "$source_state_dir" ]; then
     printf 'Cloned %s into %s\n' "$source_state_dir" "$target_state_dir"
+  fi
+}
+
+cmd_clone() {
+  [ $# -eq 2 ] || fail "Usage: ocpersona clone <source> <target>"
+
+  source_profile=$1
+  target_profile=$2
+  ensure_profile_name "$source_profile"
+  ensure_profile_name "$target_profile"
+  [ "$source_profile" != "$target_profile" ] || fail "Source and target profiles must differ"
+
+  source_root=$(profile_root_for "$source_profile")
+  source_file=$(profile_file_for "$source_profile")
+  source_cache_home=$(profile_cache_home_for "$source_profile")
+  target_root=$(profile_root_for "$target_profile")
+  target_cache_home=$(profile_cache_home_for "$target_profile")
+
+  [ -f "$source_file" ] || fail "Source profile file not found: $source_file"
+  [ -d "$source_root" ] || fail "Source profile directory not found: $source_root"
+  [ ! -e "$target_root" ] || fail "Target profile directory already exists: $target_root"
+  [ ! -e "$target_cache_home" ] || fail "Target profile cache directory already exists: $target_cache_home"
+
+  mkdir -p "$DEFAULT_PROFILES_DIR"
+  cp -R "$source_root" "$target_root"
+  if [ -d "$source_cache_home" ]; then
+    mkdir -p "$(dirname -- "$target_cache_home")"
+    cp -R "$source_cache_home" "$target_cache_home"
+  fi
+
+  printf 'Cloned profile %s into %s\n' "$source_profile" "$target_profile"
+  if [ -d "$source_cache_home" ]; then
+    printf 'Cloned %s into %s\n' "$source_cache_home" "$target_cache_home"
   fi
 }
 
@@ -657,6 +691,10 @@ main() {
     activate)
       shift
       cmd_activate "$@"
+      ;;
+    clone)
+      shift
+      cmd_clone "$@"
       ;;
     deactivate)
       shift
