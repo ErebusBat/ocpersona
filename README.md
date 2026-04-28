@@ -99,7 +99,7 @@ bin/ocpersona install
 ```
 
 By default this writes to `${ZSHRC}`, then `${ZDOTDIR}/.zshrc`, then `~/.zshrc`.
-It writes `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh`, which sets `OCP_PATH` if it is unset, and sources that checkout's `contrib/ocpersona.plugin.zsh`.
+It writes `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh`, which sets `OCP_PATH` if it is unset, and the managed shell block sources `$HOME/.config/ocpersona/config.sh` before loading that checkout's `contrib/ocpersona.plugin.zsh`.
 
 Install into a different file instead:
 
@@ -179,7 +179,7 @@ It:
 
 You can source it directly or adapt it into your dotfiles. It defaults `OCP_PATH` to `~/.local/share/ocpersona`.
 
-The `install` command appends a managed block that sources `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh` and then sources this plugin file from the current checkout. Rerunning `install` refreshes that managed `config.sh` file to the current checkout path, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
+The `install` command appends a managed block that sources `$HOME/.config/ocpersona/config.sh` and then sources this plugin file from the current checkout. Rerunning `install` refreshes that managed `config.sh` file to the current checkout path, which doubles as the upgrade story after you update the repository. If you use a more custom setup, point `install` at the file you want to manage instead of your default `ZSHRC`.
 
 ## Future Directions
 

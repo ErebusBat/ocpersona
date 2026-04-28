@@ -338,7 +338,7 @@ EOF
   [ -s "$target_file" ] && printf '\n' >> "$target_file"
   cat >> "$target_file" <<EOF
 $start_marker
-source "${config_file}"
+source "\$HOME/.config/ocpersona/config.sh"
 source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
 $end_marker
 EOF
