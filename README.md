@@ -117,13 +117,17 @@ bin/ocpersona clone-default lebowski
 
 The source directory is `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
 If your shell already exports `XDG_CONFIG_HOME`, `clone-default` uses that value even when `HOME` points somewhere else.
+If present, `clone-default` also copies `${XDG_DATA_HOME:-$HOME/.local/share}/opencode` and `${XDG_STATE_HOME:-$HOME/.local/state}/opencode` into the profile's default data and state homes.
 
 This creates:
 
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/ocpersona.sh`
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/opencode`
+- `$HOME/.local/share/ocpersona/<profile>/opencode` when source data exists
+- `$HOME/.local/state/ocpersona/<profile>/opencode` when source state exists
 
 The generated profile file sets `OCP_CONFIG_HOME` from `OCP_PROFILE_FILE` so that the copied `opencode` config is used when the profile is active.
+Cache is intentionally not cloned.
 
 Print shell init code:
 
