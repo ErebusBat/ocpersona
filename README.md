@@ -32,19 +32,20 @@ This allows commands like `ocx oc -p lshq` to stay inside the selected profile w
 By default, profile files are loaded from:
 
 ```text
-${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>.sh
+${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/ocpersona.sh
 ```
 
 These files are sourced by `ocpersona` and can define values such as:
 
 ```sh
+OCP_CONFIG_HOME="${OCP_PROFILE_FILE%/*}"
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
-OCP_CONFIG_HOME="$HOME/.config/ocpersona/work"
 OCP_DATA_HOME="$HOME/.local/share/opencode-work"
 OCP_STATE_HOME="$HOME/.local/state/opencode-work"
 OCP_CACHE_HOME="$HOME/.cache/opencode-work"
 ```
 
+`OCP_PROFILE_FILE` is exported before the profile file is sourced, so profile snippets can derive paths from it.
 If `OCP_CONFIG_HOME` is set, `ocpersona` exports it as `XDG_CONFIG_HOME` for commands launched inside that profile.
 
 If `OCP_OC_BIN` is unset, `ocpersona` defaults it to the full real path of `command -v opencode` before shim interception.
@@ -119,10 +120,10 @@ If your shell already exports `XDG_CONFIG_HOME`, `clone-default` uses that value
 
 This creates:
 
-- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>.sh`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/ocpersona.sh`
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/opencode`
 
-The generated profile file sets `OCP_CONFIG_HOME` so that the copied `opencode` config is used when the profile is active.
+The generated profile file sets `OCP_CONFIG_HOME` from `OCP_PROFILE_FILE` so that the copied `opencode` config is used when the profile is active.
 
 Print shell init code:
 

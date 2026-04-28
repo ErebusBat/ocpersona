@@ -1,9 +1,12 @@
 # Example ocpersona profile.
 #
 # Copy this to:
-#   ~/.config/ocpersona/profiles/<profile>.sh
+#   ~/.config/ocpersona/profiles/<profile>/ocpersona.sh
 #
 # Then customize it for the selected profile.
+
+# Keep the profile self-contained by default.
+OCP_CONFIG_HOME="${OCP_PROFILE_FILE%/*}"
 
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
 
