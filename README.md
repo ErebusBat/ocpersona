@@ -39,15 +39,15 @@ These files are sourced by `ocpersona` and can define values such as:
 
 ```sh
 profile_dir="${OCP_PROFILE_FILE%/*}"
-OCP_CONFIG_HOME="${profile_dir}/config"
+XDG_CONFIG_HOME="${profile_dir}/config"
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
-OCP_DATA_HOME="${profile_dir}/data"
-OCP_STATE_HOME="${profile_dir}/state"
-OCP_CACHE_HOME="$HOME/.cache/opencode-work"
+XDG_DATA_HOME="${profile_dir}/data"
+XDG_STATE_HOME="${profile_dir}/state"
+XDG_CACHE_HOME="$HOME/.cache/opencode-work"
 ```
 
 `OCP_PROFILE_FILE` is exported before the profile file is sourced, so profile snippets can derive paths from it.
-If `OCP_CONFIG_HOME` is set, `ocpersona` exports it as `XDG_CONFIG_HOME` for commands launched inside that profile.
+If a profile does not set them explicitly, `ocpersona` defaults `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_STATE_HOME` to profile-scoped directories under `~/.config/ocpersona/profiles/<profile>/`.
 
 If `OCP_OC_BIN` is unset, `ocpersona` defaults it to the full real path of `command -v opencode` before shim interception.
 
@@ -127,7 +127,7 @@ This creates:
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/data/opencode` when source data exists
 - `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/state/opencode` when source state exists
 
-The generated profile file derives `OCP_CONFIG_HOME`, `OCP_DATA_HOME`, and `OCP_STATE_HOME` from `OCP_PROFILE_FILE` so that the profile stays self-contained under one directory.
+The generated profile file derives `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, and `XDG_STATE_HOME` from `OCP_PROFILE_FILE` so that the profile stays self-contained under one directory.
 Cache is intentionally not cloned.
 
 Purge a profile and remove all of its profile-scoped files:
@@ -181,7 +181,7 @@ This prints:
 - the active `opencode` command on `PATH`
 - `OCP_PATH`, `OCP_PROFILE`, `OCP_PROFILE_FILE`, and related variables
 - whether a profile is selected and whether its runtime environment is currently loaded
-- `OCP_CONFIG_HOME` and `XDG_CONFIG_HOME` when a profile defines a config home
+- the current `XDG_*` values and the effective profile-scoped XDG homes
 - profile-defined values like `OCP_OC_BIN` and profile XDG overrides when a profile file exists
 - effective config and XDG home values that would apply once the selected profile is loaded
 - the effective resolved `opencode` binary path

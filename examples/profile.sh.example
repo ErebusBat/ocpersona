@@ -7,11 +7,11 @@
 
 # Keep the profile self-contained by default.
 profile_dir="${OCP_PROFILE_FILE%/*}"
-OCP_CONFIG_HOME="${profile_dir}/config"
-OCP_DATA_HOME="${profile_dir}/data"
-OCP_STATE_HOME="${profile_dir}/state"
+XDG_CONFIG_HOME="${profile_dir}/config"
+XDG_DATA_HOME="${profile_dir}/data"
+XDG_STATE_HOME="${profile_dir}/state"
 
 OCP_OC_BIN=/opt/homebrew/Cellar/opencode/1.14.28/bin/opencode
 
 # Cache can stay outside the profile directory if you want.
-OCP_CACHE_HOME="$HOME/.cache/opencode-example"
+XDG_CACHE_HOME="$HOME/.cache/opencode-example"
