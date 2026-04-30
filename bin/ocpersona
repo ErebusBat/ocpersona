@@ -18,6 +18,7 @@ Commands:
   exec <profile> -- <command...>   Run a command inside a profile
   activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
+  link <profile> <app> [flags]     Link profile app paths to real machine paths
   clone <source> <target>          Clone one ocpersona profile into another
   clone-default [profile]          Clone ~/.config/opencode into a profile
   purge [profile]                  Remove a profile's config, data, state, and cache
@@ -45,6 +46,15 @@ ensure_profile_name() {
   esac
 }
 
+ensure_app_name() {
+  case "$1" in
+    "") fail "App name is required" ;;
+    *[!A-Za-z0-9._-]*)
+      fail "Invalid app name: $1"
+      ;;
+  esac
+}
+
 profile_root_for() {
   printf '%s/%s\n' "$DEFAULT_PROFILES_DIR" "$1"
 }
@@ -67,6 +77,22 @@ profile_state_home_for() {
 
 profile_cache_home_for() {
   printf '%s/.cache/ocpersona/%s\n' "$HOME" "$1"
+}
+
+real_config_home_for() {
+  printf '%s\n' "${OCP_REAL_CONFIG_HOME:-$HOME/.config}"
+}
+
+real_data_home_for() {
+  printf '%s\n' "${OCP_REAL_DATA_HOME:-$HOME/.local/share}"
+}
+
+real_state_home_for() {
+  printf '%s\n' "${OCP_REAL_STATE_HOME:-$HOME/.local/state}"
+}
+
+real_cache_home_for() {
+  printf '%s\n' "${OCP_REAL_CACHE_HOME:-$HOME/.cache}"
 }
 
 managed_config_file() {
@@ -382,6 +408,126 @@ cmd_clone() {
   printf 'Cloned profile %s into %s\n' "$source_profile" "$target_profile"
   if [ -d "$source_cache_home" ]; then
     printf 'Cloned %s into %s\n' "$source_cache_home" "$target_cache_home"
+  fi
+}
+
+link_scope_path() {
+  profile_name=$1
+  app_name=$2
+  scope_name=$3
+  force_link=$4
+
+  case "$scope_name" in
+    config)
+      source_root=$(real_config_home_for)
+      target_root=$(profile_config_home_for "$profile_name")
+      ;;
+    data)
+      source_root=$(real_data_home_for)
+      target_root=$(profile_data_home_for "$profile_name")
+      ;;
+    state)
+      source_root=$(real_state_home_for)
+      target_root=$(profile_state_home_for "$profile_name")
+      ;;
+    cache)
+      source_root=$(real_cache_home_for)
+      target_root=$(profile_cache_home_for "$profile_name")
+      ;;
+    *)
+      fail "Unknown scope: $scope_name"
+      ;;
+  esac
+
+  source_path=$source_root/$app_name
+  target_path=$target_root/$app_name
+
+  [ -e "$source_path" ] || fail "Source path not found for $scope_name: $source_path"
+
+  mkdir -p "$target_root"
+
+  if [ "$force_link" = "1" ]; then
+    if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+      rm -rf "$target_path"
+    fi
+    ln -s "$source_path" "$target_path"
+    printf 'Linked %s: %s -> %s\n' "$scope_name" "$target_path" "$source_path"
+    return 0
+  fi
+
+  if [ -L "$target_path" ]; then
+    source_real=$(resolve_realpath "$source_path")
+    target_real=$(resolve_realpath "$target_path")
+    if [ "$source_real" = "$target_real" ]; then
+      printf 'Already linked %s: %s -> %s\n' "$scope_name" "$target_path" "$source_path"
+      return 0
+    fi
+    fail "Target already links to a different path for $scope_name: $target_path"
+  fi
+
+  if [ -e "$target_path" ]; then
+    fail "Target already exists for $scope_name: $target_path"
+  fi
+
+  ln -s "$source_path" "$target_path"
+  printf 'Linked %s: %s -> %s\n' "$scope_name" "$target_path" "$source_path"
+}
+
+cmd_link() {
+  [ $# -ge 2 ] || fail "Usage: ocpersona link <profile> <app> [--no-config] [--no-data] [--no-state] [--no-cache] [--force]"
+
+  profile_name=$1
+  app_name=$2
+  shift 2
+
+  ensure_profile_name "$profile_name"
+  ensure_app_name "$app_name"
+
+  do_config=1
+  do_data=1
+  do_state=1
+  do_cache=1
+  force_link=0
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --no-config)
+        do_config=0
+        ;;
+      --no-data)
+        do_data=0
+        ;;
+      --no-state)
+        do_state=0
+        ;;
+      --no-cache)
+        do_cache=0
+        ;;
+      --force)
+        force_link=1
+        ;;
+      *)
+        fail "Unknown flag: $1"
+        ;;
+    esac
+    shift
+  done
+
+  if [ "$do_config" = "0" ] && [ "$do_data" = "0" ] && [ "$do_state" = "0" ] && [ "$do_cache" = "0" ]; then
+    fail "At least one scope must be enabled"
+  fi
+
+  if [ "$do_config" = "1" ]; then
+    link_scope_path "$profile_name" "$app_name" config "$force_link"
+  fi
+  if [ "$do_data" = "1" ]; then
+    link_scope_path "$profile_name" "$app_name" data "$force_link"
+  fi
+  if [ "$do_state" = "1" ]; then
+    link_scope_path "$profile_name" "$app_name" state "$force_link"
+  fi
+  if [ "$do_cache" = "1" ]; then
+    link_scope_path "$profile_name" "$app_name" cache "$force_link"
   fi
 }
 
@@ -723,6 +869,10 @@ main() {
     deactivate)
       shift
       cmd_deactivate "$@"
+      ;;
+    link)
+      shift
+      cmd_link "$@"
       ;;
     clone-default)
       shift

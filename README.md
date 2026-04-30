@@ -102,6 +102,30 @@ Deactivate the current profile:
 eval "$(bin/ocpersona deactivate)"
 ```
 
+Link app-specific profile paths back to machine-level paths:
+
+```sh
+bin/ocpersona link lshq nvim
+bin/ocpersona link lshq nvim --no-cache
+bin/ocpersona link lshq nvim --no-cache --force
+```
+
+`link` targets `<app>` under four scopes by default (`config`, `data`, `state`, `cache`) and writes symlinks into the profile roots:
+
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/config/<app>`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/data/<app>`
+- `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles/<profile>/state/<app>`
+- `$HOME/.cache/ocpersona/<profile>/<app>`
+
+Each scope points at its real machine-level source root:
+
+- `${OCP_REAL_CONFIG_HOME:-$HOME/.config}/<app>`
+- `${OCP_REAL_DATA_HOME:-$HOME/.local/share}/<app>`
+- `${OCP_REAL_STATE_HOME:-$HOME/.local/state}/<app>`
+- `${OCP_REAL_CACHE_HOME:-$HOME/.cache}/<app>`
+
+Without `--force`, `link` fails if a target path already exists (unless it is already the exact same symlink). With `--force`, existing target paths in the profile are replaced.
+
 Install the zsh plugin block into your shell config:
 
 ```sh
@@ -225,6 +249,12 @@ This prints:
 - the current XDG directories
 - the Starship config path `install-starship` will target and whether the managed block is present
 
+Run all repository tests:
+
+```sh
+just test
+```
+
 ## Zsh Plugin
 
 A small zsh plugin snippet lives at [contrib/ocpersona.plugin.zsh](/Users/andrew.burns/src/erebusbat/ocpersona/contrib/ocpersona.plugin.zsh).
@@ -269,3 +299,4 @@ The initial version is explicit by design. Later enhancements could include:
 - directory-based profile discovery
 - project marker files
 - wrappers for additional commands beyond `opencode`
+- a declarative profile-driven link sync model (for example `sync-links`)
