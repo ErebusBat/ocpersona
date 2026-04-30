@@ -14,6 +14,7 @@ usage() {
 Usage: ocpersona <command> [options]
 
 Commands:
+  list                             List available profiles
   exec <profile> -- <command...>   Run a command inside a profile
   activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
@@ -231,6 +232,25 @@ cmd_exec() {
 
   load_profile "$profile_name"
   exec "$@"
+}
+
+cmd_list() {
+  [ $# -eq 0 ] || fail "Usage: ocpersona list"
+
+  [ -d "$DEFAULT_PROFILES_DIR" ] || return 0
+
+  profile_entries=
+  for profile_dir in "$DEFAULT_PROFILES_DIR"/*; do
+    [ -d "$profile_dir" ] || continue
+    profile_name=$(basename -- "$profile_dir")
+    ensure_profile_name "$profile_name"
+    [ -f "$(profile_file_for "$profile_name")" ] || continue
+    profile_entries="${profile_entries}${profile_name}\n"
+  done
+
+  [ -n "$profile_entries" ] || return 0
+
+  printf '%b' "$profile_entries" | /usr/bin/env sort
 }
 
 cmd_activate() {
@@ -684,6 +704,10 @@ cmd_shim_opencode() {
 main() {
   command_name=${1:-help}
   case "$command_name" in
+    list)
+      shift
+      cmd_list "$@"
+      ;;
     exec)
       shift
       cmd_exec "$@"

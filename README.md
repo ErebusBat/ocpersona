@@ -70,6 +70,14 @@ Tracked repository files should not contain personal or employer-specific paths 
 
 ## Commands
 
+List available profiles:
+
+```sh
+bin/ocpersona list
+```
+
+This prints one profile per line from `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/profiles` and includes only profiles that contain an `ocpersona.sh` profile file.
+
 Run a command inside a profile:
 
 ```sh
