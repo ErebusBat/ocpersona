@@ -126,6 +126,8 @@ Each scope points at its real machine-level source root:
 
 Without `--force`, `link` fails if a target path already exists (unless it is already the exact same symlink). With `--force`, existing target paths in the profile are replaced.
 
+For safety, `link` refuses `opencode` as the app name, including with `--force`.
+
 Install the zsh plugin block into your shell config:
 
 ```sh

@@ -18,4 +18,9 @@ if "$ROOT_DIR/bin/ocpersona" link lshq bad/name >/dev/null 2>&1; then
   exit 1
 fi
 
+if "$ROOT_DIR/bin/ocpersona" link lshq opencode --force >/dev/null 2>&1; then
+  printf '%s\n' "Expected reserved-app-name test to fail" >&2
+  exit 1
+fi
+
 printf '%s\n' "All tests passed"

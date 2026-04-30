@@ -482,6 +482,7 @@ cmd_link() {
 
   ensure_profile_name "$profile_name"
   ensure_app_name "$app_name"
+  [ "$app_name" != "opencode" ] || fail "Refusing to link reserved app name: opencode"
 
   do_config=1
   do_data=1
