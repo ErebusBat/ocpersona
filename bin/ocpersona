@@ -5,6 +5,16 @@ set -eu
 SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SOURCE_ROOT=$(CDPATH= cd -- "$SELF_DIR/.." && pwd)
 SOURCE_SHIM_DIR=${OCP_SHIM_DIR:-"$SOURCE_ROOT/shims"}
+
+BOOTSTRAP_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
+BOOTSTRAP_CONFIG_FILE=$BOOTSTRAP_CONFIG_DIR/config.sh
+if [ -f "$BOOTSTRAP_CONFIG_FILE" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$BOOTSTRAP_CONFIG_FILE"
+  set +a
+fi
+
 DEFAULT_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
 DEFAULT_OCP_PATH=${OCP_PATH:-"$SOURCE_ROOT"}
 DEFAULT_PROFILES_DIR=$DEFAULT_CONFIG_DIR/profiles
@@ -93,6 +103,41 @@ real_state_home_for() {
 
 real_cache_home_for() {
   printf '%s\n' "${OCP_REAL_CACHE_HOME:-$HOME/.cache}"
+}
+
+default_link_apps() {
+  printf '%s\n' "${OCP_DEFAULT_LINK_APPS:-gh vim nvim}"
+}
+
+link_default_apps_for_profile() {
+  profile_name=$1
+
+  for app_name in $(default_link_apps); do
+    ensure_app_name "$app_name"
+    if [ "$app_name" = "opencode" ]; then
+      printf 'Skipping reserved default link app: %s\n' "$app_name"
+      continue
+    fi
+
+    linked_any=0
+    for scope_name in config data state cache; do
+      case "$scope_name" in
+        config) source_root=$(real_config_home_for) ;;
+        data) source_root=$(real_data_home_for) ;;
+        state) source_root=$(real_state_home_for) ;;
+        cache) source_root=$(real_cache_home_for) ;;
+      esac
+
+      if [ -e "$source_root/$app_name" ]; then
+        link_scope_path "$profile_name" "$app_name" "$scope_name" 0
+        linked_any=1
+      fi
+    done
+
+    if [ "$linked_any" = "0" ]; then
+      printf 'Skipped default link app %s: no source paths found\n' "$app_name"
+    fi
+  done
 }
 
 managed_config_file() {
@@ -376,6 +421,8 @@ EOF
   if [ -d "$source_state_dir" ]; then
     printf 'Cloned %s into %s\n' "$source_state_dir" "$target_state_dir"
   fi
+
+  link_default_apps_for_profile "$profile_name"
 }
 
 cmd_clone() {
@@ -727,6 +774,9 @@ cmd_install() {
   cat > "$config_file" <<EOF
 if [ -z "\${OCP_PATH:-}" ]; then
   OCP_PATH="${install_root_value}"
+fi
+if [ -z "\${OCP_DEFAULT_LINK_APPS:-}" ]; then
+  OCP_DEFAULT_LINK_APPS="gh vim nvim"
 fi
 EOF
 

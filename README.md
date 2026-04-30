@@ -169,6 +169,7 @@ bin/ocpersona clone-default lebowski
 The source directory is `${XDG_CONFIG_HOME:-$HOME/.config}/opencode`.
 If your shell already exports `XDG_CONFIG_HOME`, `clone-default` uses that value even when `HOME` points somewhere else.
 If present, `clone-default` also copies `${XDG_DATA_HOME:-$HOME/.local/share}/opencode` and `${XDG_STATE_HOME:-$HOME/.local/state}/opencode` into the profile's default data and state homes.
+After creating the profile, `clone-default` also attempts to create profile links for each app in `${OCP_DEFAULT_LINK_APPS:-gh vim nvim}`. It links only scopes where the real source path exists.
 
 This creates:
 
@@ -256,6 +257,17 @@ Run all repository tests:
 ```sh
 just test
 ```
+
+## Global Config
+
+Global settings live in `${OCP_CONFIG_DIR:-$HOME/.config/ocpersona}/config.sh`.
+
+`install` manages this file and initializes:
+
+- `OCP_PATH` (when unset)
+- `OCP_DEFAULT_LINK_APPS` (when unset, defaults to `gh vim nvim`)
+
+`OCP_DEFAULT_LINK_APPS` is a space-separated list used by `clone-default` to auto-link common app paths into new profiles.
 
 ## Zsh Plugin
 
