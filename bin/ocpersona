@@ -898,8 +898,8 @@ EOF
 
   append_managed_block "$target_file" "$(cat <<EOF
 $start_marker
-source "\$HOME/.config/ocpersona/config.sh"
-source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
+export OCP_PATH="\${OCP_PATH:-${install_root_value}}"
+[ -f "\${OCP_PATH}/contrib/ocpersona.plugin.zsh" ] && source "\${OCP_PATH}/contrib/ocpersona.plugin.zsh"
 $end_marker
 EOF
 )"
