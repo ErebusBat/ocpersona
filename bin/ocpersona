@@ -28,7 +28,8 @@ Commands:
   exec <profile> -- <command...>   Run a command inside a profile
   activate <profile>               Print shell code to activate a profile
   deactivate                       Print shell code to deactivate the profile
-  link <profile> <app> [flags]     Link profile app paths to real machine paths
+  link [--all] <profile> [app] [flags]
+                                   Link profile app paths to real machine paths
   clone <source> <target>          Clone one ocpersona profile into another
   clone-default [profile]          Clone ~/.config/opencode into a profile
   purge [profile]                  Remove a profile's config, data, state, and cache
@@ -103,6 +104,29 @@ real_state_home_for() {
 
 real_cache_home_for() {
   printf '%s\n' "${OCP_REAL_CACHE_HOME:-$HOME/.cache}"
+}
+
+source_root_for_scope() {
+  scope_name=$1
+  case "$scope_name" in
+    config) real_config_home_for ;;
+    data) real_data_home_for ;;
+    state) real_state_home_for ;;
+    cache) real_cache_home_for ;;
+    *) fail "Unknown scope: $scope_name" ;;
+  esac
+}
+
+target_root_for_scope() {
+  profile_name=$1
+  scope_name=$2
+  case "$scope_name" in
+    config) profile_config_home_for "$profile_name" ;;
+    data) profile_data_home_for "$profile_name" ;;
+    state) profile_state_home_for "$profile_name" ;;
+    cache) profile_cache_home_for "$profile_name" ;;
+    *) fail "Unknown scope: $scope_name" ;;
+  esac
 }
 
 default_link_apps() {
@@ -324,6 +348,22 @@ cmd_list() {
   printf '%b' "$profile_entries" | /usr/bin/env sort
 }
 
+list_profile_names() {
+  [ -d "$DEFAULT_PROFILES_DIR" ] || return 0
+
+  profile_entries=
+  for profile_dir in "$DEFAULT_PROFILES_DIR"/*; do
+    [ -d "$profile_dir" ] || continue
+    profile_name=$(basename -- "$profile_dir")
+    ensure_profile_name "$profile_name"
+    [ -f "$(profile_file_for "$profile_name")" ] || continue
+    profile_entries="${profile_entries}${profile_name}\n"
+  done
+
+  [ -n "$profile_entries" ] || return 0
+  printf '%b' "$profile_entries" | /usr/bin/env sort
+}
+
 cmd_activate() {
   [ $# -eq 1 ] || fail "Usage: ocpersona activate <profile>"
   profile_name=$1
@@ -465,26 +505,12 @@ link_scope_path() {
   force_link=$4
 
   case "$scope_name" in
-    config)
-      source_root=$(real_config_home_for)
-      target_root=$(profile_config_home_for "$profile_name")
-      ;;
-    data)
-      source_root=$(real_data_home_for)
-      target_root=$(profile_data_home_for "$profile_name")
-      ;;
-    state)
-      source_root=$(real_state_home_for)
-      target_root=$(profile_state_home_for "$profile_name")
-      ;;
-    cache)
-      source_root=$(real_cache_home_for)
-      target_root=$(profile_cache_home_for "$profile_name")
-      ;;
-    *)
-      fail "Unknown scope: $scope_name"
-      ;;
+    config|data|state|cache) ;;
+    *) fail "Unknown scope: $scope_name" ;;
   esac
+
+  source_root=$(source_root_for_scope "$scope_name")
+  target_root=$(target_root_for_scope "$profile_name" "$scope_name")
 
   source_path=$source_root/$app_name
   target_path=$target_root/$app_name
@@ -521,24 +547,23 @@ link_scope_path() {
 }
 
 cmd_link() {
-  [ $# -ge 2 ] || fail "Usage: ocpersona link <profile> <app> [--no-config] [--no-data] [--no-state] [--no-cache] [--force]"
+  [ $# -gt 0 ] || fail "Usage: ocpersona link [--all] <profile> [app] [--no-config] [--no-data] [--no-state] [--no-cache] [--force]"
 
-  profile_name=$1
-  app_name=$2
-  shift 2
-
-  ensure_profile_name "$profile_name"
-  ensure_app_name "$app_name"
-  [ "$app_name" != "opencode" ] || fail "Refusing to link reserved app name: opencode"
-
+  all_profiles=0
   do_config=1
   do_data=1
   do_state=1
   do_cache=1
   force_link=0
+  positional_count=0
+  pos1=
+  pos2=
 
   while [ $# -gt 0 ]; do
     case "$1" in
+      --all)
+        all_profiles=1
+        ;;
       --no-config)
         do_config=0
         ;;
@@ -554,8 +579,22 @@ cmd_link() {
       --force)
         force_link=1
         ;;
-      *)
+      --*)
         fail "Unknown flag: $1"
+        ;;
+      *)
+        positional_count=$((positional_count + 1))
+        case "$positional_count" in
+          1)
+            pos1=$1
+            ;;
+          2)
+            pos2=$1
+            ;;
+          *)
+            fail "Too many positional arguments for link"
+            ;;
+        esac
         ;;
     esac
     shift
@@ -564,6 +603,81 @@ cmd_link() {
   if [ "$do_config" = "0" ] && [ "$do_data" = "0" ] && [ "$do_state" = "0" ] && [ "$do_cache" = "0" ]; then
     fail "At least one scope must be enabled"
   fi
+
+  if [ "$all_profiles" = "1" ]; then
+    [ "$positional_count" -le 1 ] || fail "Usage: ocpersona link --all [app] [--no-config] [--no-data] [--no-state] [--no-cache] [--force]"
+
+    app_list=
+    use_default_apps=0
+    if [ "$positional_count" -eq 1 ]; then
+      ensure_app_name "$pos1"
+      [ "$pos1" != "opencode" ] || fail "Refusing to link reserved app name: opencode"
+      app_list=$pos1
+    else
+      app_list=$(default_link_apps)
+      use_default_apps=1
+    fi
+
+    profiles=$(list_profile_names)
+    [ -n "$profiles" ] || fail "No profiles found"
+
+    for profile_name in $profiles; do
+      for app_name in $app_list; do
+        ensure_app_name "$app_name"
+        [ "$app_name" != "opencode" ] || fail "Refusing to link reserved app name: opencode"
+
+        linked_any=0
+
+        if [ "$do_config" = "1" ]; then
+          if [ "$use_default_apps" = "1" ] && [ ! -e "$(source_root_for_scope config)/$app_name" ]; then
+            :
+          else
+          link_scope_path "$profile_name" "$app_name" config "$force_link"
+            linked_any=1
+          fi
+        fi
+        if [ "$do_data" = "1" ]; then
+          if [ "$use_default_apps" = "1" ] && [ ! -e "$(source_root_for_scope data)/$app_name" ]; then
+            :
+          else
+          link_scope_path "$profile_name" "$app_name" data "$force_link"
+            linked_any=1
+          fi
+        fi
+        if [ "$do_state" = "1" ]; then
+          if [ "$use_default_apps" = "1" ] && [ ! -e "$(source_root_for_scope state)/$app_name" ]; then
+            :
+          else
+          link_scope_path "$profile_name" "$app_name" state "$force_link"
+            linked_any=1
+          fi
+        fi
+        if [ "$do_cache" = "1" ]; then
+          if [ "$use_default_apps" = "1" ] && [ ! -e "$(source_root_for_scope cache)/$app_name" ]; then
+            :
+          else
+          link_scope_path "$profile_name" "$app_name" cache "$force_link"
+            linked_any=1
+          fi
+        fi
+
+        if [ "$use_default_apps" = "1" ] && [ "$linked_any" = "0" ]; then
+          printf 'Skipped default link app %s for profile %s: no source paths found\n' "$app_name" "$profile_name"
+        fi
+      done
+    done
+
+    return 0
+  fi
+
+  [ "$positional_count" -eq 2 ] || fail "Usage: ocpersona link <profile> <app> [--no-config] [--no-data] [--no-state] [--no-cache] [--force]"
+
+  profile_name=$pos1
+  app_name=$pos2
+
+  ensure_profile_name "$profile_name"
+  ensure_app_name "$app_name"
+  [ "$app_name" != "opencode" ] || fail "Refusing to link reserved app name: opencode"
 
   if [ "$do_config" = "1" ]; then
     link_scope_path "$profile_name" "$app_name" config "$force_link"

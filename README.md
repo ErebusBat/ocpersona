@@ -108,6 +108,8 @@ Link app-specific profile paths back to machine-level paths:
 bin/ocpersona link lshq nvim
 bin/ocpersona link lshq nvim --no-cache
 bin/ocpersona link lshq nvim --no-cache --force
+bin/ocpersona link --all nvim --no-cache
+bin/ocpersona link --all --no-cache
 ```
 
 `link` targets `<app>` under four scopes by default (`config`, `data`, `state`, `cache`) and writes symlinks into the profile roots:
@@ -125,6 +127,8 @@ Each scope points at its real machine-level source root:
 - `${OCP_REAL_CACHE_HOME:-$HOME/.cache}/<app>`
 
 Without `--force`, `link` fails if a target path already exists (unless it is already the exact same symlink). With `--force`, existing target paths in the profile are replaced.
+
+`link --all` applies linking across all profiles. With `--all <app>`, it links one app for every profile. With `--all` and no app, it links each app from `${OCP_DEFAULT_LINK_APPS:-gh vim nvim}` for every profile.
 
 For safety, `link` refuses `opencode` as the app name, including with `--force`.
 

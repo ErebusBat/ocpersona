@@ -25,6 +25,13 @@ export XDG_CACHE_HOME=$HOME/.cache
 mkdir -p "$XDG_CONFIG_HOME/opencode" "$XDG_DATA_HOME/opencode" "$XDG_STATE_HOME/opencode"
 mkdir -p "$XDG_CONFIG_HOME/gh" "$XDG_CONFIG_HOME/vim" "$XDG_CONFIG_HOME/nvim"
 mkdir -p "$XDG_DATA_HOME/nvim" "$XDG_STATE_HOME/nvim"
+mkdir -p "$OCP_CONFIG_DIR/profiles/lebowski"
+cat > "$OCP_CONFIG_DIR/profiles/lebowski/ocpersona.sh" <<'EOF'
+profile_dir=${OCP_PROFILE_FILE%/*}
+XDG_CONFIG_HOME="${profile_dir}/config"
+XDG_DATA_HOME="${profile_dir}/data"
+XDG_STATE_HOME="${profile_dir}/state"
+EOF
 
 "$ROOT_DIR/bin/ocpersona" clone-default lshq
 
@@ -53,6 +60,26 @@ for linked_app in gh vim nvim; do
     printf '%s\n' "Expected clone-default to link $linked_app config path" >&2
     exit 1
   fi
+done
+
+"$ROOT_DIR/bin/ocpersona" link --all nvim --no-cache --force
+for profile_name in lshq lebowski; do
+  linked_path=$OCP_CONFIG_DIR/profiles/$profile_name/config/nvim
+  if [ ! -L "$linked_path" ]; then
+    printf '%s\n' "Expected --all app link for profile $profile_name" >&2
+    exit 1
+  fi
+done
+
+"$ROOT_DIR/bin/ocpersona" link --all --no-cache
+for profile_name in lshq lebowski; do
+  for linked_app in gh vim nvim; do
+    linked_path=$OCP_CONFIG_DIR/profiles/$profile_name/config/$linked_app
+    if [ ! -L "$linked_path" ]; then
+      printf '%s\n' "Expected --all default link $linked_app for profile $profile_name" >&2
+      exit 1
+    fi
+  done
 done
 
 printf '%s\n' "All tests passed"
