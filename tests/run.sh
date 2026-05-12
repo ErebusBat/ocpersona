@@ -12,6 +12,13 @@ trap cleanup EXIT
 
 export HOME=$tmp_dir
 export OCP_CONFIG_DIR=$tmp_dir/ocpersona-config
+unset OCP_PROFILE
+unset OCP_PROFILE_FILE
+unset OCP_ACTIVE
+unset OCP_OC_BIN
+unset OCP_PATH
+unset OCP_SHIM_DIR
+unset OCP_SHELL_INTEGRATION
 mkdir -p "$OCP_CONFIG_DIR"
 cat > "$OCP_CONFIG_DIR/config.sh" <<'EOF'
 OCP_DEFAULT_LINK_APPS="gh vim nvim"
@@ -81,5 +88,80 @@ for profile_name in lshq lebowski; do
     fi
   done
 done
+
+repo_dir=$tmp_dir/workrepo
+mkdir -p "$repo_dir"
+(
+  cd "$repo_dir"
+  /usr/bin/env git init >/dev/null 2>&1
+)
+
+cat > "$repo_dir/.ocpersona" <<'EOF'
+export OCP_PROFILE=repoauto
+EOF
+
+doctor_output=$(
+  cd "$repo_dir"
+  "$ROOT_DIR/bin/ocpersona" doctor
+)
+
+printf '%s\n' "$doctor_output" | /usr/bin/env grep -q '^ocp_profile=repoauto$' || {
+  printf '%s\n' "Expected doctor to auto-detect OCP_PROFILE from repo .ocpersona" >&2
+  exit 1
+}
+
+cat > "$repo_dir/.ocpersona" <<'EOF'
+export OCP_OC_BIN=/tmp/fake-opencode
+EOF
+
+if (
+  cd "$repo_dir"
+  "$ROOT_DIR/bin/ocpersona" doctor >/dev/null 2>&1
+); then
+  printf '%s\n' "Expected doctor to fail when repo .ocpersona omits OCP_PROFILE" >&2
+  exit 1
+fi
+
+cat > "$repo_dir/.ocpersona" <<'EOF'
+export OCP_PROFILE=repoauto
+EOF
+
+explicit_output=$(
+  cd "$repo_dir"
+  OCP_PROFILE=manual "$ROOT_DIR/bin/ocpersona" doctor
+)
+
+printf '%s\n' "$explicit_output" | /usr/bin/env grep -q '^ocp_profile=manual$' || {
+  printf '%s\n' "Expected explicit OCP_PROFILE to win over repo auto-detect" >&2
+  exit 1
+}
+
+cat > "$repo_dir/.ocpersona" <<'EOF'
+export OCP_PROFILE=repoauto
+export OCP_OC_BIN=/tmp/repo-opencode
+EOF
+
+override_output=$(
+  cd "$repo_dir"
+  OCP_OC_BIN=/tmp/env-opencode "$ROOT_DIR/bin/ocpersona" doctor
+)
+
+printf '%s\n' "$override_output" | /usr/bin/env grep -q '^ocp_oc_bin=/tmp/repo-opencode$' || {
+  printf '%s\n' "Expected repo .ocpersona OCP_OC_BIN to override process env when autodetect runs" >&2
+  exit 1
+}
+
+nonrepo_dir=$tmp_dir/nonrepo
+mkdir -p "$nonrepo_dir"
+
+nonrepo_output=$(
+  cd "$nonrepo_dir"
+  "$ROOT_DIR/bin/ocpersona" doctor
+)
+
+printf '%s\n' "$nonrepo_output" | /usr/bin/env grep -q '^ocp_profile=$' || {
+  printf '%s\n' "Expected no auto-detection outside git repos" >&2
+  exit 1
+}
 
 printf '%s\n' "All tests passed"

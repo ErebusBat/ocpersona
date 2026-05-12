@@ -19,6 +19,12 @@ DEFAULT_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
 DEFAULT_OCP_PATH=${OCP_PATH:-"$SOURCE_ROOT"}
 DEFAULT_PROFILES_DIR=$DEFAULT_CONFIG_DIR/profiles
 
+refresh_default_paths() {
+  DEFAULT_CONFIG_DIR=${OCP_CONFIG_DIR:-"$HOME/.config/ocpersona"}
+  DEFAULT_OCP_PATH=${OCP_PATH:-"$SOURCE_ROOT"}
+  DEFAULT_PROFILES_DIR=$DEFAULT_CONFIG_DIR/profiles
+}
+
 usage() {
   cat <<EOF
 Usage: ocpersona <command> [options]
@@ -280,6 +286,51 @@ PY
 default_oc_bin() {
   resolved=$(resolve_real_command opencode) || fail "Could not locate real opencode on PATH"
   resolve_realpath "$resolved"
+}
+
+git_repo_root_for_pwd() {
+  /usr/bin/env git rev-parse --show-toplevel 2>/dev/null || return 1
+}
+
+emit_ocp_env_from_marker() {
+  marker_file=$1
+  MARKER_FILE="$marker_file" /bin/sh <<'EOF'
+set -eu
+set -a
+. "$MARKER_FILE"
+set +a
+env | /usr/bin/env grep '^OCP_' || true
+EOF
+}
+
+apply_ocp_env_lines() {
+  env_lines=$1
+  [ -n "$env_lines" ] || return 0
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    case "$line" in
+      OCP_*=*) export "$line" ;;
+    esac
+  done <<EOF
+$env_lines
+EOF
+}
+
+auto_detect_profile_if_unset() {
+  [ -n "${OCP_PROFILE:-}" ] && return 0
+
+  repo_root=$(git_repo_root_for_pwd) || return 0
+  marker_file=$repo_root/.ocpersona
+  [ -f "$marker_file" ] || return 0
+
+  marker_env=$(emit_ocp_env_from_marker "$marker_file") || fail "Failed to source repo marker: $marker_file"
+  apply_ocp_env_lines "$marker_env"
+
+  [ -n "${OCP_PROFILE:-}" ] || fail "Repo marker must export OCP_PROFILE: $marker_file"
+  ensure_profile_name "$OCP_PROFILE"
+
+  refresh_default_paths
 }
 
 load_profile() {
@@ -1013,6 +1064,8 @@ cmd_shim_opencode() {
 }
 
 main() {
+  auto_detect_profile_if_unset
+
   command_name=${1:-help}
   case "$command_name" in
     list)

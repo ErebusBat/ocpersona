@@ -27,6 +27,31 @@ The `opencode` shim is intentionally thin:
 
 This allows commands like `ocx oc -p lshq` to stay inside the selected profile when `ocx` shells out to `opencode`.
 
+## Repo Auto-Detection
+
+When `ocpersona` is invoked and `OCP_PROFILE` is unset, it can auto-detect profile settings from a Git repository marker file.
+
+- detection only runs when the current directory is inside a Git repository
+- marker path is fixed at `<repo-root>/.ocpersona` (same level as `.git`)
+- the marker is sourced as shell and may export any `OCP_*` variables
+- the marker must export a valid `OCP_PROFILE`; otherwise `ocpersona` fails with an error
+
+If `OCP_PROFILE` is already set in the process environment, explicit selection wins and repo auto-detection is skipped.
+
+Example marker file:
+
+```sh
+# <repo-root>/.ocpersona
+export OCP_PROFILE=work
+export OCP_OC_BIN=/opt/homebrew/bin/opencode
+```
+
+Precedence order:
+
+1. explicit `OCP_PROFILE` in environment
+2. repo `.ocpersona` auto-detection (only when `OCP_PROFILE` is unset)
+3. existing default behavior
+
 ## Profile Files
 
 By default, profile files are loaded from:
