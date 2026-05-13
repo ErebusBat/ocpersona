@@ -491,7 +491,7 @@ cmd_activate() {
     repo_root=$(git_repo_root_for_pwd) || fail "Not inside a git repository"
     marker_file=$repo_root/.ocpersona
     remove_marker_profile_line "$marker_file"
-    printf 'Removed OCP_PROFILE from %s\n' "$marker_file"
+    printf 'Removed OCP_PROFILE from %s\n' "$marker_file" >&2
     return 0
   fi
 
