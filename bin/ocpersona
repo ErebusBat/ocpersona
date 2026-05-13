@@ -350,7 +350,7 @@ remove_marker_profile_line() {
   fi
 
   tmp_file=$marker_file.ocpersona.tmp
-  grep -v "^export OCP_PROFILE=" "$marker_file" > "$tmp_file"
+  grep -v "^export OCP_PROFILE=" "$marker_file" > "$tmp_file" || true
   mv "$tmp_file" "$marker_file"
 
   if [ ! -s "$marker_file" ]; then
