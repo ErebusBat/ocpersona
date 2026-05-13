@@ -317,6 +317,45 @@ $env_lines
 EOF
 }
 
+update_marker_file() {
+  marker_file=$1
+  profile_name=$2
+  ensure_profile_name "$profile_name"
+  profile_line="export OCP_PROFILE=$profile_name"
+
+  if [ ! -f "$marker_file" ]; then
+    printf '%s\n' "$profile_line" > "$marker_file"
+    return 0
+  fi
+
+  if grep -Fq "export OCP_PROFILE=" "$marker_file"; then
+    tmp_file=$marker_file.ocpersona.tmp
+    sed "s|^export OCP_PROFILE=.*$|$profile_line|" "$marker_file" > "$tmp_file"
+    mv "$tmp_file" "$marker_file"
+    return 0
+  fi
+
+  printf '%s\n' "$profile_line" >> "$marker_file"
+}
+
+remove_marker_profile_line() {
+  marker_file=$1
+
+  [ -f "$marker_file" ] || return 0
+
+  if ! grep -Fq "export OCP_PROFILE=" "$marker_file"; then
+    return 0
+  fi
+
+  tmp_file=$marker_file.ocpersona.tmp
+  grep -v "^export OCP_PROFILE=" "$marker_file" > "$tmp_file"
+  mv "$tmp_file" "$marker_file"
+
+  if [ ! -s "$marker_file" ]; then
+    rm -f "$marker_file"
+  fi
+}
+
 auto_detect_profile_if_unset() {
   [ -n "${OCP_PROFILE:-}" ] && return 0
 
