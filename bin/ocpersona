@@ -32,7 +32,9 @@ Usage: ocpersona <command> [options]
 Commands:
   list                             List available profiles
   exec <profile> -- <command...>   Run a command inside a profile
-  activate <profile>               Print shell code to activate a profile
+  activate [--local] <profile>     Print shell code to activate a profile
+                                    --local also writes .ocpersona in the repo root
+  activate --unset                 Remove OCP_PROFILE from the repo .ocpersona
   deactivate                       Print shell code to deactivate the profile
   link [--all] <profile> [app] [flags]
                                    Link profile app paths to real machine paths
@@ -455,11 +457,55 @@ list_profile_names() {
 }
 
 cmd_activate() {
-  [ $# -eq 1 ] || fail "Usage: ocpersona activate <profile>"
-  profile_name=$1
+  do_local=0
+  do_unset=0
+  profile_name=
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --local)
+        do_local=1
+        ;;
+      --unset)
+        do_unset=1
+        ;;
+      --*)
+        fail "Unknown flag: $1"
+        ;;
+      *)
+        if [ -n "$profile_name" ]; then
+          fail "Unexpected argument: $1"
+        fi
+        profile_name=$1
+        ;;
+    esac
+    shift
+  done
+
+  if [ "$do_local" = "1" ] && [ "$do_unset" = "1" ]; then
+    fail "--local and --unset are mutually exclusive"
+  fi
+
+  if [ "$do_unset" = "1" ]; then
+    [ -z "$profile_name" ] || fail "--unset does not accept a profile name"
+    repo_root=$(git_repo_root_for_pwd) || fail "Not inside a git repository"
+    marker_file=$repo_root/.ocpersona
+    remove_marker_profile_line "$marker_file"
+    printf 'Removed OCP_PROFILE from %s\n' "$marker_file"
+    return 0
+  fi
+
+  [ -n "$profile_name" ] || fail "Usage: ocpersona activate [--local] <profile> or ocpersona activate --unset"
   ensure_profile_name "$profile_name"
   profile_file=$(profile_file_for "$profile_name")
   [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
+
+  if [ "$do_local" = "1" ]; then
+    repo_root=$(git_repo_root_for_pwd) || fail "Not inside a git repository"
+    marker_file=$repo_root/.ocpersona
+    update_marker_file "$marker_file" "$profile_name"
+    printf 'Set OCP_PROFILE=%s in %s\n' "$profile_name" "$marker_file" >&2
+  fi
 
   cat <<EOF
 export OCP_PROFILE='$profile_name'
