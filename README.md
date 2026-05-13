@@ -127,6 +127,24 @@ Deactivate the current profile:
 eval "$(bin/ocpersona deactivate)"
 ```
 
+Write the profile to the repo marker file and activate:
+
+```sh
+bin/ocpersona activate --local lshq
+```
+
+Remove the profile from the repo marker file:
+
+```sh
+bin/ocpersona activate --unset
+```
+
+`--local` writes or updates `export OCP_PROFILE=<profile>` in `<repo-root>/.ocpersona`. If the file already exists with other `export` lines (for example, `OCP_OC_BIN`), those lines are preserved. If the file does not exist, it is created. The command fails if not inside a git repository.
+
+`--unset` removes the `export OCP_PROFILE=...` line from `<repo-root>/.ocpersona`, preserving all other lines. If the file is empty after removal, it is deleted. The command fails if not inside a git repository.
+
+`--local` and `--unset` are mutually exclusive.
+
 Link app-specific profile paths back to machine-level paths:
 
 ```sh
@@ -306,7 +324,7 @@ It:
 
 - initializes the shim on `PATH`
 - defines an `ocpersona` shell function that can activate and deactivate profiles
-- adds `ocp-on` and `ocp-off` convenience wrappers
+- adds `ocp-on` and `ocp-off` convenience wrappers — `ocp-on <profile>` activates and writes `.ocpersona`, `ocp-on --unset` removes the profile from `.ocpersona`
 
 You can source it directly or adapt it into your dotfiles. When sourced directly, it defaults `OCP_PATH` to the checkout that contains the plugin file.
 
