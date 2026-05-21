@@ -495,7 +495,7 @@ cmd_activate() {
     return 0
   fi
 
-  : "${profile_name:=${OCP_PROFILE:-}}"
+  : "${profile_name:=${_pre_autodetect_profile:-}}"
   [ -n "$profile_name" ] || fail "Usage: ocpersona activate [--local] <profile> or ocpersona activate --unset"
   ensure_profile_name "$profile_name"
   profile_file=$(profile_file_for "$profile_name")
@@ -520,11 +520,18 @@ if command -v rehash >/dev/null 2>&1; then
 elif command -v hash >/dev/null 2>&1; then
   hash -r 2>/dev/null || true
 fi
-unset OCP_ACTIVE
-unset XDG_CONFIG_HOME
-unset XDG_DATA_HOME
-unset XDG_STATE_HOME
-unset XDG_CACHE_HOME
+set -a
+. '$profile_file'
+set +a
+: "\${XDG_CONFIG_HOME:=$(profile_config_home_for "$profile_name")}"
+: "\${XDG_DATA_HOME:=$(profile_data_home_for "$profile_name")}"
+: "\${XDG_STATE_HOME:=$(profile_state_home_for "$profile_name")}"
+: "\${XDG_CACHE_HOME:=$HOME/.cache/ocpersona/$profile_name}"
+export XDG_CONFIG_HOME
+export XDG_DATA_HOME
+export XDG_STATE_HOME
+export XDG_CACHE_HOME
+export OCP_ACTIVE=1
 if command -v rehash >/dev/null 2>&1; then
   rehash
 elif command -v hash >/dev/null 2>&1; then
@@ -1130,6 +1137,13 @@ ocpersona() {
       ;;
   esac
 }
+opencode() {
+  if [ "\${OCP_PROFILE:-}" != "" ] && [ "\${OCP_ACTIVE:-0}" != "1" ]; then
+    "\${OCP_PATH}/bin/ocpersona" exec "\$OCP_PROFILE" -- "\${OCP_PATH}/bin/ocpersona" __run_real_opencode "\$@"
+  else
+    "\${OCP_SHIM_DIR}/opencode" "\$@"
+  fi
+}
 EOF
 }
 
@@ -1150,6 +1164,7 @@ cmd_shim_opencode() {
 }
 
 main() {
+  _pre_autodetect_profile=${OCP_PROFILE:-}
   auto_detect_profile_if_unset
 
   command_name=${1:-help}

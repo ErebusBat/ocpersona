@@ -12,6 +12,8 @@ alias ocp="${OCP_PATH}/bin/ocpersona"
 ocp-on() {
   if [ "${1:-}" = "--unset" ]; then
     ocpersona activate --unset
+  elif [ $# -eq 0 ] && [ -n "${OCP_PROFILE:-}" ]; then
+    ocpersona activate --local "$OCP_PROFILE"
   else
     ocpersona activate --local "$@"
   fi
