@@ -42,6 +42,7 @@ Commands:
   clone-default [profile]          Clone ~/.config/opencode into a profile
   purge [profile]                  Remove a profile's config, data, state, and cache
   doctor                           Show current environment and integration info
+  dump-env [profile]               Print environment variables for a profile
   install [file]                   Install zsh init into a shell file
   install-starship [file]          Install Starship config for OCP_PROFILE
   init [zsh|bash|sh]               Print shell init code
@@ -112,6 +113,12 @@ real_state_home_for() {
 
 real_cache_home_for() {
   printf '%s\n' "${OCP_REAL_CACHE_HOME:-$HOME/.cache}"
+}
+
+dump_var() {
+  eval "val=\${$1:-}"
+  printf 'export %s=' "$1"
+  printf "'%s'\n" "$(printf '%s\n' "$val" | sed "s/'/'\\\\''/g")"
 }
 
 source_root_for_scope() {
@@ -878,6 +885,30 @@ cmd_purge() {
   printf 'Purged profile %s\n' "$profile_name"
 }
 
+cmd_dump_env() {
+  profile_name=${1:-${OCP_PROFILE:-}}
+  if [ -z "$profile_name" ]; then
+    auto_detect_profile_if_unset
+    profile_name=${OCP_PROFILE:-}
+    [ -z "$profile_name" ] && fail "No profile specified and OCP_PROFILE is not set"
+  fi
+
+  load_profile "$profile_name"
+
+  dump_var OCP_PROFILE
+  dump_var OCP_PROFILE_FILE
+  dump_var OCP_PATH
+  dump_var OCP_SHIM_DIR
+  dump_var OCP_CONFIG_DIR
+  dump_var OCP_ACTIVE
+  [ -n "${OCP_OC_BIN:-}" ] && dump_var OCP_OC_BIN
+  dump_var XDG_CONFIG_HOME
+  dump_var XDG_DATA_HOME
+  dump_var XDG_STATE_HOME
+  dump_var XDG_CACHE_HOME
+  dump_var PATH
+}
+
 cmd_doctor() {
   integration_mode=direct-command
   if [ "${OCP_SHELL_INTEGRATION:-0}" = "1" ]; then
@@ -1204,6 +1235,10 @@ main() {
     doctor)
       shift
       cmd_doctor "$@"
+      ;;
+    dump-env)
+      shift
+      cmd_dump_env "$@"
       ;;
     install)
       shift
