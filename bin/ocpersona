@@ -509,7 +509,7 @@ cmd_activate() {
   [ -f "$profile_file" ] || fail "Profile file not found: $profile_file"
 
   if [ "$do_local" = "1" ]; then
-    repo_root=$(git_repo_root_for_pwd) || fail "Not inside a git repository"
+    repo_root=$(git_repo_root_for_pwd) || repo_root=${OCP_LOCAL_DIR:-$(pwd)}
     marker_file=$repo_root/.ocpersona
     update_marker_file "$marker_file" "$profile_name"
     printf 'Set OCP_PROFILE=%s in %s\n' "$profile_name" "$marker_file" >&2
