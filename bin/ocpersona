@@ -495,7 +495,7 @@ cmd_activate() {
 
   if [ "$do_unset" = "1" ]; then
     [ -z "$profile_name" ] || fail "--unset does not accept a profile name"
-    repo_root=$(git_repo_root_for_pwd) || fail "Not inside a git repository"
+    repo_root=$(git_repo_root_for_pwd) || repo_root=${OCP_LOCAL_DIR:-$(pwd)}
     marker_file=$repo_root/.ocpersona
     remove_marker_profile_line "$marker_file"
     printf 'Removed OCP_PROFILE from %s\n' "$marker_file" >&2
