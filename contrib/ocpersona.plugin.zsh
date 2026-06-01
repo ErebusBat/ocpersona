@@ -10,12 +10,15 @@ eval "$(${OCP_PATH}/bin/ocpersona init zsh)"
 
 alias ocp="${OCP_PATH}/bin/ocpersona"
 ocp-on() {
-  if [ "${1:-}" = "--unset" ]; then
+  if [ "${1:-}" = "--local" ]; then
+    shift
+    ocpersona activate --local "$@"
+  elif [ "${1:-}" = "--unset" ]; then
     ocpersona activate --unset
   elif [ $# -eq 0 ] && [ -n "${OCP_PROFILE:-}" ]; then
-    ocpersona activate --local "$OCP_PROFILE"
+    ocpersona activate "$OCP_PROFILE"
   else
-    ocpersona activate --local "$@"
+    ocpersona activate "$@"
   fi
 }
 
