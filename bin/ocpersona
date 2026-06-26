@@ -283,6 +283,21 @@ resolve_real_command() {
   return 1
 }
 
+_strip_shim_dirs() {
+  local path="$1" result="" dir
+  local old_ifs="$IFS"
+  IFS=:
+  for dir in $path; do
+    IFS="$old_ifs"
+    [ "$dir" = "$SOURCE_SHIM_DIR" ] && continue
+    [ "$dir" = "$(runtime_shim_dir)" ] && continue
+    result="${result:+$result:}$dir"
+    IFS=:
+  done
+  IFS="$old_ifs"
+  printf '%s\n' "$result"
+}
+
 resolve_realpath() {
   target=$1
   python3 - "$target" <<'PY'
@@ -1183,10 +1198,13 @@ cmd_run_real_opencode() {
   if [ -z "$oc_bin" ]; then
     oc_bin=$(default_oc_bin)
   fi
+  PATH=$(_strip_shim_dirs "$PATH")
+  export PATH
   exec "$oc_bin" "$@"
 }
 
 cmd_shim_opencode() {
+  echo "***DEBUG: cmd_shim_opencode; OCP_PROFILE=$OCP_PROFILE OCP_ACTIVE=$OCP_ACTIVE"
   if [ "${OCP_PROFILE:-}" != "" ] && [ "${OCP_ACTIVE:-0}" != "1" ]; then
     exec "$SOURCE_ROOT/bin/ocpersona" exec "$OCP_PROFILE" -- "$SOURCE_ROOT/bin/ocpersona" __run_real_opencode "$@"
   fi
